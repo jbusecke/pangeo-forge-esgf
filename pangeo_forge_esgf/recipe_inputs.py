@@ -89,7 +89,7 @@ def _build_params(iid: str) -> Dict[str, str]:
         # "fields": ["url", "size", "retracted", "table_id", "title","instance_id"], # TODO: why does this not work? Ill revisit when I am tuning performance, for now get all
         "latest": "true",
         "distrib": "true",
-        # "limit": 500, # TODO: Should this be less?
+        "limit": 500, # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
     facets = facets_from_iid(iid)
     params.update(facets)
@@ -139,6 +139,8 @@ async def response_data_processing(
 
     # this takes care of checking that all table_ids are the same, so I can do this
     table_id = table_ids[0][0]
+
+    print(f'Found {len(raw_urls)} urls')
 
     # pick http url
     urls = [_parse_url_type(url[0]) for url in raw_urls]
