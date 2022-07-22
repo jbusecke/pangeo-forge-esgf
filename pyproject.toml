@@ -6,17 +6,3 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "pangeo_forge_esgf/_version.py"
 write_to_template = "__version__ = '{version}'"
-
-[project]
-name = "pangeo-forge-esgf"
-description = "Using queries to the ESGF API to generate urls and keyword arguments for receipe generation in pangeo-forge"
-readme = "README.md"
-requires-python = ">=3.7"
-license = {text = "Apache Software License"}
-classifiers = [
-    "Programming Language :: Python :: 3",
-]
-dependencies = [
-    " aiohttp",
-]
-dynamic = ["version"]
