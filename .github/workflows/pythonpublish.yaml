@@ -62,7 +62,6 @@ jobs:
           ls -ltrh
           ls -ltrh dist
   upload-to-pypi:
-    needs: upload-to-testpypi
     if: "!github.event.release.prerelease"
     runs-on: ubuntu-latest
     steps:
