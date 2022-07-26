@@ -225,19 +225,10 @@ async def pick_data_node(
     response_groups: Dict[str, List[Dict[str, str]]], session: aiohttp.ClientSession
 ) -> Dict[str, Dict[str, str]]:
     """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
-
-    # check for original (non-replica) node
-    original_data_node = []
     test_response_list = response_groups.get(list(response_groups.keys())[0])
-    for r in test_response_list:
-        if not r["replica"]:
-            original_data_node.append(r["data_node"])
-    print(f"Original data node: {original_data_node}")
-
-    data_node_list = original_data_node + data_nodes
     
     ## Determine preferred data node
-    for data_node in data_node_list:
+    for data_node in data_nodes:
         print(f'DEBUG: Testing data node: {data_node}')
         matching_data_nodes = [r for r in test_response_list if r['data_node']==data_node]
         if len(matching_data_nodes)==1:
