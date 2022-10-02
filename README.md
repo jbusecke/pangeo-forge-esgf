@@ -36,3 +36,35 @@ and you will get:
 ```
 
 Eventually I hope I can leverage this functionality to handle user requests in PRs that add wildcard instance_ids, but for now this might be helpful to manually construct lists of instance_ids to submit to a pangeo-forge feedstock.
+
+## Use different ESGF project
+
+You can also use different ESGF projects and facets to search, e.g., for a search in the ESGF CORDEX datasets, use:
+```python
+parse_iids = [
+    "CORDEX.output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.*.r1i1p1.REMO2009.v1.mon.tas",
+    "CORDEX.output.EUR-44.MPI-CSC.MPI-M-MPI-ESM-LR.*.r1i1p1.REMO2009.v1.mon.tas"
+]
+iids = []
+```
+
+using a different url:
+```python
+url = "https://esgf-data.dkrz.de/esg-search/search"
+
+for piid in parse_iids:
+    iids.extend(parse_instance_ids(piid, url=url))
+iids
+```
+
+results in
+```
+['cordex.output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.historical.r1i1p1.REMO2009.v1.mon.tas.v20160419',
+ 'cordex.output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.rcp26.r1i1p1.REMO2009.v1.mon.tas.v20160525',
+ 'cordex.output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.rcp85.r1i1p1.REMO2009.v1.mon.tas.v20160525',
+ 'cordex.output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.rcp45.r1i1p1.REMO2009.v1.mon.tas.v20160525',
+ 'cordex.output.EUR-44.MPI-CSC.MPI-M-MPI-ESM-LR.rcp26.r1i1p1.REMO2009.v1.mon.tas.v20150609',
+ 'cordex.output.EUR-44.MPI-CSC.MPI-M-MPI-ESM-LR.rcp85.r1i1p1.REMO2009.v1.mon.tas.v20150609',
+ 'cordex.output.EUR-44.MPI-CSC.MPI-M-MPI-ESM-LR.rcp45.r1i1p1.REMO2009.v1.mon.tas.v20150609',
+ 'cordex.output.EUR-44.MPI-CSC.MPI-M-MPI-ESM-LR.historical.r1i1p1.REMO2009.v1.mon.tas.v20150609']
+```
