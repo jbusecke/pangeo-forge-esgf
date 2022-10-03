@@ -7,6 +7,14 @@ iids = [
     'CMIP6.PMIP.MRI.MRI-ESM2-0.past1000.r1i1p1f1.Amon.tas.gn.v20200120',
     'CMIP6.PMIP.MPI-M.MPI-ESM1-2-LR.past2k.r1i1p1f1.Amon.tas.gn.v20210714',
 ]
+#
+recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids))
+print('DONE')
+print(recipe_inputs)
+
+iids = [
+    "CORDEX.output.EUR-11.GERICS.ECMWF-ERAINT.evaluation.r1i1p1.REMO2015.v1.mon.tas",
+]
 
 recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids))
 print('DONE')
