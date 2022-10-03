@@ -14,9 +14,17 @@ iids = [
     "CMIP6.PMIP.MPI-M.MPI-ESM1-2-LR.past2k.r1i1p1f1.Amon.tas.gn.v20210714",
     "CMIP6.CMIP.FIO-QLNM.FIO-ESM-2-0.piControl.r1i1p1f1.Omon.vsf.gn",  # this one should not be available. This changes daily. Check the data nodes which are down to find examples.
 ]
+#
+recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids))
+print('DONE')
+print(recipe_inputs)
+
+iids = [
+    "CORDEX.output.EUR-11.GERICS.ECMWF-ERAINT.evaluation.r1i1p1.REMO2015.v1.mon.tas",
+]
 
 recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids))
-print("DONE")
+print('DONE')
 print(recipe_inputs)
 
 # %%
