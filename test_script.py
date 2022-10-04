@@ -12,11 +12,3 @@ iids = [
 recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids))
 print('DONE')
 print(recipe_inputs)
-
-iids = [
-    "CORDEX.output.EUR-11.GERICS.ECMWF-ERAINT.evaluation.r1i1p1.REMO2015.v1.mon.tas",
-]
-
-recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids))
-print('DONE')
-print(recipe_inputs)

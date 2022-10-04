@@ -1,7 +1,7 @@
-import asyncio
-from typing import Dict, List, Union
-
+from typing import Dict, Union, List
 import aiohttp
+import ssl
+import asyncio
 
 from .dynamic_kwargs import response_data_processing
 from .utils import facets_from_iid
@@ -58,6 +58,7 @@ data_nodes = [
 
 async def generate_recipe_inputs_from_iids(
     iid_list: List[str],
+    ssl: ssl.SSLContext = None
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
@@ -81,7 +82,13 @@ async def generate_recipe_inputs_from_iids(
 
         tasks = []
         for iid in iid_list:
+<<<<<<< HEAD
             tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
+=======
+            tasks.append(
+                asyncio.ensure_future(iid_request(session, iid, search_node, ssl=ssl))
+            )
+>>>>>>> f2f8513 (added ssl keyword and test_cordex.py script)
 
         raw_input = await asyncio.gather(*tasks)
         recipe_inputs = {
@@ -98,7 +105,8 @@ async def generate_recipe_inputs_from_iids(
 
 
 async def iid_request(
-    session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}
+    session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}, 
+    ssl: ssl.SSLContext = None
 ):
     urls = None
     kwargs = None
@@ -109,7 +117,13 @@ async def iid_request(
     filtered_response_data = await sort_and_filter_response(response_data, session)
 
     print(f"Determining dynamics kwargs for {iid}...")
+<<<<<<< HEAD
     urls, kwargs = await response_data_processing(session, filtered_response_data, iid)
+=======
+    urls, kwargs = await response_data_processing(
+        session, filtered_response_data, iid, ssl
+    )
+>>>>>>> f2f8513 (added ssl keyword and test_cordex.py script)
 
     return urls, kwargs
 
