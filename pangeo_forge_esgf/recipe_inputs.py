@@ -59,8 +59,7 @@ data_nodes = [
 
 
 async def generate_recipe_inputs_from_iids(
-    iid_list: List[str],
-    ssl: ssl.SSLContext = None
+    iid_list: List[str], ssl: ssl.SSLContext = None
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
@@ -237,11 +236,13 @@ async def pick_data_node(
     test_response_list = response_groups.get(list(response_groups.keys())[0])
     ## Determine preferred data node
     for data_node in data_nodes:
-        print(f'DEBUG: Testing data node: {data_node}')
-        matching_data_nodes = [r for r in test_response_list if r['data_node']==data_node]
-        if len(matching_data_nodes)==1:
-            matching_data_node = matching_data_nodes[0] # TODO: this is kinda clunky
-            status = await check_url(matching_data_node['url'], session)
+        print(f"DEBUG: Testing data node: {data_node}")
+        matching_data_nodes = [
+            r for r in test_response_list if r["data_node"] == data_node
+        ]
+        if len(matching_data_nodes) == 1:
+            matching_data_node = matching_data_nodes[0]  # TODO: this is kinda clunky
+            status = await check_url(matching_data_node["url"], session)
             if status in [200, 302, 308]:
                 picked_data_node = data_node
                 print(f"DEBUG: Picking preferred data_node: {picked_data_node}")
