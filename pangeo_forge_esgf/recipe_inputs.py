@@ -1,5 +1,6 @@
 from typing import Dict, Union, List, Tuple
 import aiohttp
+import ssl
 import asyncio
 import time
 from .dynamic_kwargs import response_data_processing
@@ -58,6 +59,7 @@ data_nodes = [
 
 async def generate_recipe_inputs_from_iids(
     iid_list: List[str],
+    ssl: ssl.SSLContext = None
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
@@ -82,7 +84,7 @@ async def generate_recipe_inputs_from_iids(
         tasks = []
         for iid in iid_list:
             tasks.append(
-                asyncio.ensure_future(iid_request(session, iid, search_node))
+                asyncio.ensure_future(iid_request(session, iid, search_node, ssl=ssl))
             )
 
         raw_input = await asyncio.gather(*tasks)
@@ -100,7 +102,8 @@ async def generate_recipe_inputs_from_iids(
 
 
 async def iid_request(
-    session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}
+    session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}, 
+    ssl: ssl.SSLContext = None
 ):
     urls = None
     kwargs = None
@@ -112,7 +115,7 @@ async def iid_request(
 
     print(f"Determining dynamics kwargs for {iid}...")
     urls, kwargs = await response_data_processing(
-        session, filtered_response_data, iid
+        session, filtered_response_data, iid, ssl
     )
 
     return urls, kwargs
