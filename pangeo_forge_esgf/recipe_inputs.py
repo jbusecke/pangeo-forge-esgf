@@ -49,8 +49,9 @@ data_nodes = [
     "esgf.ichec.ie",
     "esgf.nci.org.au",
     "esgf.rcec.sinica.edu.tw",
-    "esgf3.dkrz.de",
     "esgf1.dkrz.de",
+    "esgf2.dkrz.de",
+    "esgf3.dkrz.de",
     "noresg.nird.sigma2.no",
     "polaris.pknu.ac.kr",
     "vesg.ipsl.upmc.fr",
@@ -145,6 +146,9 @@ async def _esgf_api_request(
     if params["latest"] == "true":
         if "version" in facets:
             del facets["version"]
+    if "CORDEX" in facets.values():
+        # doesn't work otherwise
+        del params["retracted"]
 
     # combine params and facets
     params = params | facets
