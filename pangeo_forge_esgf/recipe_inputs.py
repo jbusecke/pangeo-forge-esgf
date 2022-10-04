@@ -58,8 +58,7 @@ data_nodes = [
 
 
 async def generate_recipe_inputs_from_iids(
-    iid_list: List[str],
-    ssl: ssl.SSLContext = None
+    iid_list: List[str], ssl: ssl.SSLContext = None
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
@@ -102,8 +101,11 @@ async def generate_recipe_inputs_from_iids(
 
 
 async def iid_request(
-    session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}, 
-    ssl: ssl.SSLContext = None
+    session: aiohttp.ClientSession,
+    iid: str,
+    node: List[str],
+    params: Dict = {},
+    ssl: ssl.SSLContext = None,
 ):
     urls = None
     kwargs = None
@@ -131,7 +133,7 @@ async def _esgf_api_request(
         "retracted": "false",
         "format": "application/solr+json",
         "fields": "url,size,table_id,title,instance_id,replica,data_node",
-        "latest": "true", 
+        "latest": "true",
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
@@ -161,11 +163,11 @@ async def _esgf_api_request(
 
 
 async def check_url(url, session):
-    try: 
+    try:
         async with session.head(url, timeout=5) as resp:
             return resp.status
     except asyncio.exceptions.TimeoutError:
-        return 503 #TODO: Is this best practice?
+        return 503  # TODO: Is this best practice?
 
 
 async def sort_and_filter_response(
@@ -230,11 +232,13 @@ async def pick_data_node(
     test_response_list = response_groups.get(list(response_groups.keys())[0])
     ## Determine preferred data node
     for data_node in data_nodes:
-        print(f'DEBUG: Testing data node: {data_node}')
-        matching_data_nodes = [r for r in test_response_list if r['data_node']==data_node]
-        if len(matching_data_nodes)==1:
-            matching_data_node = matching_data_nodes[0] # TODO: this is kinda clunky
-            status = await check_url(matching_data_node['url'], session)
+        print(f"DEBUG: Testing data node: {data_node}")
+        matching_data_nodes = [
+            r for r in test_response_list if r["data_node"] == data_node
+        ]
+        if len(matching_data_nodes) == 1:
+            matching_data_node = matching_data_nodes[0]  # TODO: this is kinda clunky
+            status = await check_url(matching_data_node["url"], session)
             if status in [200, 302, 308]:
                 picked_data_node = data_node
                 print(f"DEBUG: Picking preferred data_node: {picked_data_node}")
@@ -242,9 +246,9 @@ async def pick_data_node(
             else:
                 print(f"Got status {status} for {matching_data_node['instance_id']}")
         elif len(matching_data_nodes) == 0:
-            print(f'DEBUG: Data node: {data_node} not available')
+            print(f"DEBUG: Data node: {data_node} not available")
         else:
-            raise # this should never happen
+            raise  # this should never happen
 
     # loop through all groups and filter for the picked data node
     modified_response_groups = {}
