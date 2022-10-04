@@ -51,6 +51,7 @@ data_nodes = [
     "esgf1.dkrz.de",
     "esgf2.dkrz.de",
     "esgf3.dkrz.de",
+    "esgf1.dkrz.de",
     "noresg.nird.sigma2.no",
     "polaris.pknu.ac.kr",
     "vesg.ipsl.upmc.fr",
@@ -82,13 +83,9 @@ async def generate_recipe_inputs_from_iids(
 
         tasks = []
         for iid in iid_list:
-<<<<<<< HEAD
-            tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
-=======
             tasks.append(
                 asyncio.ensure_future(iid_request(session, iid, search_node, ssl=ssl))
             )
->>>>>>> f2f8513 (added ssl keyword and test_cordex.py script)
 
         raw_input = await asyncio.gather(*tasks)
         recipe_inputs = {
@@ -120,13 +117,9 @@ async def iid_request(
     filtered_response_data = await sort_and_filter_response(response_data, session)
 
     print(f"Determining dynamics kwargs for {iid}...")
-<<<<<<< HEAD
-    urls, kwargs = await response_data_processing(session, filtered_response_data, iid)
-=======
     urls, kwargs = await response_data_processing(
         session, filtered_response_data, iid, ssl
     )
->>>>>>> f2f8513 (added ssl keyword and test_cordex.py script)
 
     return urls, kwargs
 
@@ -241,15 +234,13 @@ async def pick_data_node(
 ) -> Dict[str, Dict[str, str]]:
     """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
     test_response_list = response_groups.get(list(response_groups.keys())[0])
-    # Determine preferred data node
+    ## Determine preferred data node
     for data_node in data_nodes:
-        print(f"DEBUG: Testing data node: {data_node}")
-        matching_data_nodes = [
-            r for r in test_response_list if r["data_node"] == data_node
-        ]
-        if len(matching_data_nodes) == 1:
-            matching_data_node = matching_data_nodes[0]  # TODO: this is kinda clunky
-            status = await check_url(matching_data_node["url"], session)
+        print(f'DEBUG: Testing data node: {data_node}')
+        matching_data_nodes = [r for r in test_response_list if r['data_node']==data_node]
+        if len(matching_data_nodes)==1:
+            matching_data_node = matching_data_nodes[0] # TODO: this is kinda clunky
+            status = await check_url(matching_data_node['url'], session)
             if status in [200, 302, 308]:
                 picked_data_node = data_node
                 print(f"DEBUG: Picking preferred data_node: {picked_data_node}")
