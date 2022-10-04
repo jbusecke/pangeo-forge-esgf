@@ -3,8 +3,6 @@ from typing import Dict, List, Tuple
 import aiohttp
 import ssl
 
-from .utils import facets_from_iid
-
 # For certain table_ids it is preferrable to have time chunks that are a multiple of e.g. 1 year for monthly data.
 monthly_divisors = sorted(
     [1, 3, 6, 12, 12 * 3]

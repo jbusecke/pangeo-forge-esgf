@@ -59,7 +59,8 @@ data_nodes = [
 
 
 async def generate_recipe_inputs_from_iids(
-    iid_list: List[str], ssl: ssl.SSLContext = None
+    iid_list: List[str],
+    ssl: ssl.SSLContext = None
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
