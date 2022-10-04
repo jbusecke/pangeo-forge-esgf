@@ -49,6 +49,7 @@ data_nodes = [
     "esgf.nci.org.au",
     "esgf.rcec.sinica.edu.tw",
     "esgf3.dkrz.de",
+    "esgf1.dkrz.de",
     "noresg.nird.sigma2.no",
     "polaris.pknu.ac.kr",
     "vesg.ipsl.upmc.fr",
@@ -104,7 +105,6 @@ async def iid_request(
 
     print(f"Requesting data for Node: {node} and {iid}...")
     response_data = await _esgf_api_request(session, node, iid, params)
-
     print(f"Filtering response data for {iid}...")
     filtered_response_data = await sort_and_filter_response(response_data, session)
 
@@ -221,7 +221,6 @@ async def pick_data_node(
 ) -> Dict[str, Dict[str, str]]:
     """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
     test_response_list = response_groups.get(list(response_groups.keys())[0])
-
     # Determine preferred data node
     for data_node in data_nodes:
         print(f"DEBUG: Testing data node: {data_node}")
@@ -231,7 +230,7 @@ async def pick_data_node(
         if len(matching_data_nodes) == 1:
             matching_data_node = matching_data_nodes[0]  # TODO: this is kinda clunky
             status = await check_url(matching_data_node["url"], session)
-            if status in [200, 308]:
+            if status in [200, 302, 308]:
                 picked_data_node = data_node
                 print(f"DEBUG: Picking preferred data_node: {picked_data_node}")
                 break
