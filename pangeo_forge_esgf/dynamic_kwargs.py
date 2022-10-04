@@ -102,7 +102,8 @@ async def response_data_processing(
     ssl: ssl.SSLContext = None,
 ) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
 
-    table_id = facets_from_iid(iid).get("table_id")
+    # really hacky!
+    table_id = "Amon"  # facets_from_iid(iid).get("table_id")
     urls = [r["url"] for r in response_data]
     sizes = [r["size"] for r in response_data]
     titles = [r["title"] for r in response_data]
@@ -123,7 +124,7 @@ async def response_data_processing(
     # TODO: Is there a more robust way to do this?
     # otherwise maybe use `id` (harder to parse)
     dates = [t.replace(".nc", "").split("_")[-1].split("-") for t in titles]
-
+    print(dates)
     timesteps = get_timesteps_simple(dates, table_id)
 
     print(f"Dates for each file: {dates}")
@@ -172,7 +173,9 @@ async def response_data_processing(
     return urls, kwargs
 
 
-async def is_netcdf3(session: aiohttp.ClientSession, url: str, ssl: ssl.SSLContext = None) -> bool:
+async def is_netcdf3(
+    session: aiohttp.ClientSession, url: str, ssl: ssl.SSLContext = None
+) -> bool:
     """Simple check to determine the netcdf file version behind a url.
     Requires the server to support range requests"""
     headers = {"Range": "bytes=0-2"}

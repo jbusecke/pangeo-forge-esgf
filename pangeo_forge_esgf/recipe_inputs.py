@@ -57,8 +57,7 @@ data_nodes = [
 
 
 async def generate_recipe_inputs_from_iids(
-    iid_list: List[str],
-    ssl: ssl.SSLContext = None
+    iid_list: List[str], ssl: ssl.SSLContext = None
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
@@ -105,8 +104,11 @@ async def generate_recipe_inputs_from_iids(
 
 
 async def iid_request(
-    session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}, 
-    ssl: ssl.SSLContext = None
+    session: aiohttp.ClientSession,
+    iid: str,
+    node: List[str],
+    params: Dict = {},
+    ssl: ssl.SSLContext = None,
 ):
     urls = None
     kwargs = None
