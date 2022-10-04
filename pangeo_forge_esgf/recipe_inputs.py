@@ -51,7 +51,6 @@ data_nodes = [
     "esgf1.dkrz.de",
     "esgf2.dkrz.de",
     "esgf3.dkrz.de",
-    "esgf1.dkrz.de",
     "noresg.nird.sigma2.no",
     "polaris.pknu.ac.kr",
     "vesg.ipsl.upmc.fr",
