@@ -7,7 +7,7 @@ from pangeo_forge_esgf import generate_recipe_inputs_from_iids
 # logon
 manager = LogonManager()
 if not manager.is_logged_on():
-    myproxy_host = 'esgf-data.dkrz.de'
+    myproxy_host = "esgf-data.dkrz.de"
     manager.logon(hostname=myproxy_host, interactive=True, bootstrap=True)
 
 # create SSL context
@@ -20,5 +20,5 @@ iids = [
 ]
 
 recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids, ssl=sslcontext))
-print('DONE')
+print("DONE")
 print(recipe_inputs)
