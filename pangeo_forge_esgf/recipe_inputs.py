@@ -1,12 +1,12 @@
-from typing import Dict, Union, List, Tuple
-import aiohttp
 import asyncio
-import time
+from typing import Dict, List, Union
+
+import aiohttp
+
 from .dynamic_kwargs import response_data_processing
 from .utils import facets_from_iid
 
-
-## global variables
+# global variables
 search_node_list = [
     "https://esgf-node.llnl.gov/esg-search/search",
     "https://esgf-data.dkrz.de/esg-search/search",
@@ -18,7 +18,7 @@ search_node_list = [
 # For now just use llnl
 search_node = search_node_list[0]
 
-## Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
+# Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
 data_nodes = [
     "esgf-data1.llnl.gov",
     "esgf-data2.llnl.gov",
@@ -80,9 +80,7 @@ async def generate_recipe_inputs_from_iids(
 
         tasks = []
         for iid in iid_list:
-            tasks.append(
-                asyncio.ensure_future(iid_request(session, iid, search_node))
-            )
+            tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
 
         raw_input = await asyncio.gather(*tasks)
         recipe_inputs = {
@@ -111,9 +109,7 @@ async def iid_request(
     filtered_response_data = await sort_and_filter_response(response_data, session)
 
     print(f"Determining dynamics kwargs for {iid}...")
-    urls, kwargs = await response_data_processing(
-        session, filtered_response_data, iid
-    )
+    urls, kwargs = await response_data_processing(session, filtered_response_data, iid)
 
     return urls, kwargs
 
@@ -128,7 +124,7 @@ async def _esgf_api_request(
         "retracted": "false",
         "format": "application/solr+json",
         "fields": "url,size,table_id,title,instance_id,replica,data_node",
-        "latest": "true", 
+        "latest": "true",
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
@@ -158,11 +154,11 @@ async def _esgf_api_request(
 
 
 async def check_url(url, session):
-    try: 
+    try:
         async with session.head(url, timeout=5) as resp:
             return resp.status
     except asyncio.exceptions.TimeoutError:
-        return 503 #TODO: Is this best practice?
+        return 503  # TODO: Is this best practice?
 
 
 async def sort_and_filter_response(
@@ -225,14 +221,16 @@ async def pick_data_node(
 ) -> Dict[str, Dict[str, str]]:
     """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
     test_response_list = response_groups.get(list(response_groups.keys())[0])
-    
-    ## Determine preferred data node
+
+    # Determine preferred data node
     for data_node in data_nodes:
-        print(f'DEBUG: Testing data node: {data_node}')
-        matching_data_nodes = [r for r in test_response_list if r['data_node']==data_node]
-        if len(matching_data_nodes)==1:
-            matching_data_node = matching_data_nodes[0] # TODO: this is kinda clunky
-            status = await check_url(matching_data_node['url'], session)
+        print(f"DEBUG: Testing data node: {data_node}")
+        matching_data_nodes = [
+            r for r in test_response_list if r["data_node"] == data_node
+        ]
+        if len(matching_data_nodes) == 1:
+            matching_data_node = matching_data_nodes[0]  # TODO: this is kinda clunky
+            status = await check_url(matching_data_node["url"], session)
             if status in [200, 308]:
                 picked_data_node = data_node
                 print(f"DEBUG: Picking preferred data_node: {picked_data_node}")
@@ -240,9 +238,9 @@ async def pick_data_node(
             else:
                 print(f"Got status {status} for {matching_data_node['instance_id']}")
         elif len(matching_data_nodes) == 0:
-            print(f'DEBUG: Data node: {data_node} not available')
+            print(f"DEBUG: Data node: {data_node} not available")
         else:
-            raise # this should never happen
+            raise  # this should never happen
 
     # loop through all groups and filter for the picked data node
     modified_response_groups = {}

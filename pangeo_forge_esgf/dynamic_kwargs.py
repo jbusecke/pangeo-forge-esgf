@@ -1,5 +1,7 @@
-from typing import Dict, Union, List, Tuple
+from typing import Dict, List, Tuple
+
 import aiohttp
+
 from .utils import facets_from_iid
 
 # For certain table_ids it is preferrable to have time chunks that are a multiple of e.g. 1 year for monthly data.
@@ -127,7 +129,7 @@ async def response_data_processing(
     print(f"Inferred timesteps per file: {timesteps}")
     element_sizes = [size / n_t for size, n_t in zip(sizes, timesteps)]
 
-    ### Determine kwargs
+    # Determine kwargs
     # MAX_SUBSET_SIZE=1e9 # This is an option if the revised subsetting still runs into errors.
     MAX_SUBSET_SIZE = 500e6
     DESIRED_CHUNKSIZE = 200e6
@@ -146,7 +148,7 @@ async def response_data_processing(
     if max(sizes) <= MAX_SUBSET_SIZE:
         subset_input = 0
     else:
-        ## Determine subset_input parameters given the following constraints
+        # Determine subset_input parameters given the following constraints
         # - Needs to keep the subset size below MAX_SUBSET_SIZE
         # - (Not currently implemented) Resulting subsets should be evenly dividable by target_chunks (except for the last file, that can be odd). This might ultimately not be required once we figure out the locking issues. I cannot fulfill this right now with the dataset structure where often the first and last files have different number of timesteps than the 'middle' ones.
 
