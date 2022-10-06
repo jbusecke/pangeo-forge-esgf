@@ -6,3 +6,11 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "pangeo_forge_esgf/_version.py"
 write_to_template = "__version__ = '{version}'"
+
+[tools.isort]
+profile = "black"
+skip_gitignore = true
+force_to_top = true
+default_section = "THIRDPARTY"
+known_first_party = "pangeo-forge-esgf"
+skip= ["doc/conf.py"]
