@@ -3,9 +3,9 @@ Using queries to the ESGF API to generate urls and keyword arguments for receipe
 
 
 ## Parsing a list of instance ids using wildcards
-Pangeo forge recipes require the user to provide exact instance_id's for the datasets they want to be processed. Discovering these with the [web search](https://esgf-node.llnl.gov/search/cmip6/) can become cumbersome, especially when dealing with a large number of members/models etc. 
+Pangeo forge recipes require the user to provide exact instance_id's for the datasets they want to be processed. Discovering these with the [web search](https://esgf-node.llnl.gov/search/cmip6/) can become cumbersome, especially when dealing with a large number of members/models etc.
 
-`pangeo-forge-esgf` provides some functions to query the ESGF API based on instance_id values with wildcards. 
+`pangeo-forge-esgf` provides some functions to query the ESGF API based on instance_id values with wildcards.
 
 For example if you want to find all the zonal (`uo`) and meridonal (`vo`) velocities available for the `lgm` experiment of PMIP, you can do:
 

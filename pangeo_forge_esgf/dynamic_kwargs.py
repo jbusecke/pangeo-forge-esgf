@@ -1,5 +1,7 @@
-from typing import Dict, Union, List, Tuple
+from typing import Dict, List, Tuple, Union
+
 import aiohttp
+
 from .utils import facets_from_iid
 
 # For certain table_ids it is preferrable to have time chunks that are a multiple of e.g. 1 year for monthly data.

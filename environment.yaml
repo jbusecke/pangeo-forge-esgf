@@ -1,6 +1,6 @@
 name: pangeo-forge-esgf
 channels:
  - conda-forge
-dependencies: 
+dependencies:
  - python
  - aiohttp
