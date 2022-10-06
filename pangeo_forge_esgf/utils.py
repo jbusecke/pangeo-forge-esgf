@@ -1,7 +1,9 @@
-from typing import Dict
-from .params import id_templates
-import requests
 import re
+from typing import Dict
+
+import requests
+
+from .params import id_templates
 
 
 def facets_from_iid(iid: str, mip: str = None) -> Dict[str, str]:
@@ -24,10 +26,10 @@ def get_dataset_id_template(project: str, url: str = None):
         "project": project,
         "fields": "*",
         "limit": 1,
-        "format": "application/solr+json"
+        "format": "application/solr+json",
     }
     r = requests.get(url, params)
-    #print(r.status_code)
+    # print(r.status_code)
     return r.json()["response"]["docs"][0]["dataset_id_template_"][0]
 
 

@@ -1,7 +1,8 @@
-from typing import Dict, Union, List
-import aiohttp
-import ssl
 import asyncio
+import ssl
+from typing import Dict, List, Union
+
+import aiohttp
 
 from .dynamic_kwargs import response_data_processing
 from .utils import facets_from_iid
@@ -115,13 +116,9 @@ async def iid_request(
     filtered_response_data = await sort_and_filter_response(response_data, session)
 
     print(f"Determining dynamics kwargs for {iid}...")
-<<<<<<< HEAD
-    urls, kwargs = await response_data_processing(session, filtered_response_data, iid)
-=======
     urls, kwargs = await response_data_processing(
         session, filtered_response_data, iid, ssl
     )
->>>>>>> f2f8513 (added ssl keyword and test_cordex.py script)
 
     return urls, kwargs
 

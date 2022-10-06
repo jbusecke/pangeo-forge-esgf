@@ -1,7 +1,7 @@
 import requests
 
-from .utils import facets_from_iid
 from .params import request_params
+from .utils import facets_from_iid
 
 
 def request_from_facets(url, mip, **facets):

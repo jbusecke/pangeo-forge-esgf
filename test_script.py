@@ -10,5 +10,5 @@ iids = [
 ]
 #
 recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids))
-print('DONE')
+print("DONE")
 print(recipe_inputs)
