@@ -1,13 +1,12 @@
 import asyncio
-import time
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Union
 
 import aiohttp
 
 from .dynamic_kwargs import response_data_processing
 from .utils import facets_from_iid
 
-## global variables
+# global variables
 search_node_list = [
     "https://esgf-node.llnl.gov/esg-search/search",
     "https://esgf-data.dkrz.de/esg-search/search",
@@ -19,7 +18,7 @@ search_node_list = [
 # For now just use llnl
 search_node = search_node_list[0]
 
-## Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
+# Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
 data_nodes = [
     "esgf-data1.llnl.gov",
     "esgf-data2.llnl.gov",
@@ -223,7 +222,7 @@ async def pick_data_node(
     """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
     test_response_list = response_groups.get(list(response_groups.keys())[0])
 
-    ## Determine preferred data node
+    # Determine preferred data node
     for data_node in data_nodes:
         print(f"DEBUG: Testing data node: {data_node}")
         matching_data_nodes = [
