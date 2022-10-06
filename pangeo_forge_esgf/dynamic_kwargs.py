@@ -1,7 +1,9 @@
+import ssl
 from typing import Dict, List, Tuple
 
 import aiohttp
 import ssl
+
 
 # For certain table_ids it is preferrable to have time chunks that are a multiple of e.g. 1 year for monthly data.
 monthly_divisors = sorted(

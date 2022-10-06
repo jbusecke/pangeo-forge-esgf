@@ -1,7 +1,8 @@
-from typing import Dict, Union, List
-import aiohttp
-import ssl
 import asyncio
+import ssl
+from typing import Dict, List, Union
+
+import aiohttp
 
 from .dynamic_kwargs import response_data_processing
 from .utils import facets_from_iid
