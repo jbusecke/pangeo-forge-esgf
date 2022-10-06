@@ -82,14 +82,9 @@ async def generate_recipe_inputs_from_iids(
 
         tasks = []
         for iid in iid_list:
-<<<<<<< HEAD
-            tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
-=======
             tasks.append(
                 asyncio.ensure_future(iid_request(session, iid, search_node, ssl=ssl))
             )
->>>>>>> f2f8513 (added ssl keyword and test_cordex.py script)
-
         raw_input = await asyncio.gather(*tasks)
         recipe_inputs = {
             iid: {"urls": urls, **kwargs}

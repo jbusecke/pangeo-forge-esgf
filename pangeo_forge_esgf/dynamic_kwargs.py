@@ -2,7 +2,6 @@ from typing import Dict, List, Tuple
 
 import aiohttp
 import ssl
-
 from .utils import facets_from_iid
 
 # For certain table_ids it is preferrable to have time chunks that are a multiple of e.g. 1 year for monthly data.
@@ -103,7 +102,7 @@ async def response_data_processing(
 ) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
 
     # really hacky!
-    table_id = "Amon"  # facets_from_iid(iid).get("table_id")
+    table_id = facets_from_iid(iid).get("table_id")
     urls = [r["url"] for r in response_data]
     sizes = [r["size"] for r in response_data]
     titles = [r["title"] for r in response_data]
