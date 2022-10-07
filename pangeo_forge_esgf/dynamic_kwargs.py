@@ -15,15 +15,16 @@ monthly_divisors = sorted(
 )
 
 allowed_divisors = {
-    "Omon": monthly_divisors,
-    "SImon": monthly_divisors,
-    "Amon": monthly_divisors,
+    "mon": monthly_divisors,
+    #    "Omon": monthly_divisors,
+    #    "SImon": monthly_divisors,
+    #    "Amon": monthly_divisors,
 }  # Add table_ids and allowed divisors as needed
 
 
-def get_timesteps_simple(dates, table_id):
+def get_timesteps_simple(dates, frequency):
     assert (
-        "mon" in table_id
+        "mon" in frequency
     )  # this needs some more careful treatment for other timefrequencies.
     timesteps = [
         (int(d[1][0:4]) - int(d[0][0:4])) * 12 + (int(d[1][4:6]) - int(d[0][4:6]) + 1)
@@ -102,11 +103,17 @@ async def response_data_processing(
     ssl: ssl.SSLContext = None,
 ) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
 
-    # really hacky!
-    table_id = "Amon"  # facets_from_iid(iid).get("table_id")
+    # table_id = facets_from_iid(iid).get("table_id")
     urls = [r["url"] for r in response_data]
     sizes = [r["size"] for r in response_data]
     titles = [r["title"] for r in response_data]
+
+    # determine frequency
+    frequencies = [r["frequency"][0] for r in response_data]
+    # check if not all files have the same frequency, that should never happen.
+    if not all(f == frequencies[0] for f in frequencies):
+        raise ValueError("Determined frequencies are not all equal.")
+    frequency = frequencies[0]
 
     print(f"Found {len(urls)} urls")
     print(list(urls))
@@ -125,7 +132,7 @@ async def response_data_processing(
     # otherwise maybe use `id` (harder to parse)
     dates = [t.replace(".nc", "").split("_")[-1].split("-") for t in titles]
     print(dates)
-    timesteps = get_timesteps_simple(dates, table_id)
+    timesteps = get_timesteps_simple(dates, frequency)
 
     print(f"Dates for each file: {dates}")
     print(f"Size per file in MB: {[f/1e6 for f in sizes]}")
@@ -139,7 +146,7 @@ async def response_data_processing(
     # TODO: We need a completely new logic branch which checks if the total size (sum(filesizes)) is smaller than a desired chunk
     target_chunks = {
         "time": choose_chunksize(
-            allowed_divisors[table_id],
+            allowed_divisors[frequency],
             DESIRED_CHUNKSIZE,
             element_sizes,
             timesteps,
