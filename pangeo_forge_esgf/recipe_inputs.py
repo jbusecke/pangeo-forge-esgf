@@ -128,11 +128,14 @@ async def _esgf_api_request(
 ) -> Dict[str, str]:
 
     # set default search parameters
+    # `frequency` contains the frequency in CMIP6, obs4MIPs and input4MIPs
+    # `time_frequency` is CMIP5 and CORDEX vocabulary
+    # this could be easier modified within an object oriented approach...
     default_params = {
         "type": "File",
         "retracted": "false",
         "format": "application/solr+json",
-        "fields": "url,size,table_id,title,instance_id,replica,data_node",
+        "fields": "url,size,table_id,title,instance_id,replica,data_node,frequency,time_frequency",
         "latest": "true",
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
@@ -147,6 +150,7 @@ async def _esgf_api_request(
             del facets["version"]
     if "CORDEX" in facets.values():
         # doesn't work otherwise
+        # i think CORDEX datasets don't get retracted but simply deleted from ESGF
         del params["retracted"]
 
     # combine params and facets
@@ -160,8 +164,15 @@ async def _esgf_api_request(
         content_type="text/json"
     )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
     resp_data = resp_data["response"]["docs"]
+
     if len(resp_data) == 0:
         raise ValueError(f"No Files were found for {iid}")
+    # Since we have hacked CORDEX special case above, i'll do it here again:
+    # rename to common CMIP vocabulary if neccessary
+    resp_data = [
+        {"frequency" if k == "time_frequency" else k: v for k, v in r.items()}
+        for r in resp_data
+    ]
     return resp_data
 
 
