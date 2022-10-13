@@ -2,7 +2,6 @@ from pangeo_forge_esgf.parsing import parse_instance_ids
 
 def test_readme_example():
     # This is possibly flaky (due to the dependence on the ESGF API)
-    from pangeo_forge_esgf.parsing import parse_instance_ids
     parse_iids = [
         "CMIP6.PMIP.*.*.lgm.*.*.uo.*.*",
         "CMIP6.PMIP.*.*.lgm.*.*.vo.*.*",
