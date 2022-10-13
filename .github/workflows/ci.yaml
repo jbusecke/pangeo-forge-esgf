@@ -26,11 +26,7 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -r requirements.txt
-      - id: 'upload-script'
-        run: python check-open-stores.py
-      - id: 'save-error-report'
-        uses: actions/upload-artifact@v2
-        with:
-          name: report
-          path: report.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Test with pytest
+        run: pytest pangeo_forge_esgf/tests
