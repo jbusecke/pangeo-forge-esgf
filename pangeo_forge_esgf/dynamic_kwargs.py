@@ -34,10 +34,14 @@ def get_timesteps_simple(dates, table_id):
     if "mon" in table_id:
         timesteps = months
     elif "day" in table_id:
-        timesteps = [m * 30 for m in months]  # This is close enough without worrying about calendars etc.
+        timesteps = [
+            m * 30 for m in months
+        ]  # This is close enough without worrying about calendars etc.
     else:
         # this needs some more careful treatment for other timefrequencies.
-        raise NotImplemented("Only daily and monthly time frequencies are currently supported")
+        raise NotImplemented(
+            "Only daily and monthly time frequencies are currently supported"
+        )
     return timesteps
 
 
