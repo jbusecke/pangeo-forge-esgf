@@ -39,7 +39,9 @@ def get_timesteps_simple(dates, table_id):
         ]  # This is close enough without worrying about calendars etc.
     else:
         # this needs some more careful treatment for other timefrequencies.
-        raise NotImplementedError("Only daily and monthly time frequencies are currently supported")
+        raise NotImplementedError(
+            "Only daily and monthly time frequencies are currently supported"
+        )
     return timesteps
 
 
