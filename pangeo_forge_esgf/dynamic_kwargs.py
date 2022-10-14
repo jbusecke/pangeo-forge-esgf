@@ -13,21 +13,31 @@ monthly_divisors = sorted(
     # TODO: I might not want to allow this in the ocean and ice fields. Lets see
 )
 
+daily_divisors = sorted(
+    [1, 30, 360, 365, 3653]
+    # TODO: It  might be more efficient to default to the underlying file chunks?
+)
+
 allowed_divisors = {
     "Omon": monthly_divisors,
     "SImon": monthly_divisors,
     "Amon": monthly_divisors,
+    "day": daily_divisors,
 }  # Add table_ids and allowed divisors as needed
 
 
 def get_timesteps_simple(dates, table_id):
-    assert (
-        "mon" in table_id
-    )  # this needs some more careful treatment for other timefrequencies.
-    timesteps = [
+    months = [
         (int(d[1][0:4]) - int(d[0][0:4])) * 12 + (int(d[1][4:6]) - int(d[0][4:6]) + 1)
         for d in dates
     ]
+    if "mon" in table_id:
+        timesteps = months
+    elif "day" in table_id:
+        timesteps = [m * 30 for m in months]  # This is close enough without worrying about calendars etc.
+    else:
+        # this needs some more careful treatment for other timefrequencies.
+        raise NotImplemented("Only daily and monthly time frequencies are currently supported")
     return timesteps
 
 

@@ -20,6 +20,7 @@ search_node = search_node_list[0]
 
 # Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
 data_nodes = [
+    "noresg.nird.sigma2.no",
     "esgf-data1.llnl.gov",
     "esgf-data2.llnl.gov",
     "aims3.llnl.gov",
@@ -49,7 +50,6 @@ data_nodes = [
     "esgf.nci.org.au",
     "esgf.rcec.sinica.edu.tw",
     "esgf3.dkrz.de",
-    "noresg.nird.sigma2.no",
     "polaris.pknu.ac.kr",
     "vesg.ipsl.upmc.fr",
 ]
