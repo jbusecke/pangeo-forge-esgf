@@ -245,7 +245,7 @@ async def pick_data_node(
 ) -> Dict[str, Dict[str, str]]:
     """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
     test_response_list = response_groups.get(list(response_groups.keys())[0])
-    ## Determine preferred data node
+    # Determine preferred data node
     for data_node in data_nodes:
         print(f"DEBUG: Testing data node: {data_node}")
         matching_data_nodes = [
