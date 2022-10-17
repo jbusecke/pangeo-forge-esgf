@@ -1,6 +1,7 @@
-name: pangeo-forge-esgf
+name: pangeo-forge-esgf-dev
 channels:
  - conda-forge
 dependencies:
- - python
- - aiohttp
+- pip
+- pip:
+  - -r requirements.txt
