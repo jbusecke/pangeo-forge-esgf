@@ -3,15 +3,29 @@ from typing import Dict
 
 import requests
 
-from .params import id_templates
+from .params import id_templates, known_projects
 
 
-def facets_from_iid(iid: str, mip: str = None) -> Dict[str, str]:
+def ensure_project_str(project: str) -> str:
+    """Ensure that the project string has right format
+
+    This is mainly neccessary for CORDEX projects because the
+    project facet in the dataset_id is lowercase while in the API
+    search we have to use uppercase or a mixture of upper and lowercase.
+
+    """
+    for p in known_projects:
+        if project.upper() == p.upper():
+            return p
+    return project
+
+
+def facets_from_iid(iid: str, project: str = None) -> Dict[str, str]:
     """Translates iid string to facet dict according to CMIP6 naming scheme"""
-    if mip is None:
+    if project is None:
         # take project id from first iid entry by default
-        mip = iid.split(".")[0]
-    iid_name_template = id_templates[mip]
+        project = iid.split(".")[0]
+    iid_name_template = id_templates[project]
     facets = {}
     for name, value in zip(iid_name_template.split("."), iid.split(".")):
         facets[name] = value
@@ -24,12 +38,11 @@ def get_dataset_id_template(project: str, url: str = None):
         url = "https://esgf-node.llnl.gov/esg-search/search"
     params = {
         "project": project,
-        "fields": "*",
+        "fields": "project,dataset_id_template_",
         "limit": 1,
         "format": "application/solr+json",
     }
     r = requests.get(url, params)
-    # print(r.status_code)
     return r.json()["response"]["docs"][0]["dataset_id_template_"][0]
 
 
