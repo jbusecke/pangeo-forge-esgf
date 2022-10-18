@@ -153,6 +153,9 @@ async def _esgf_api_request(
         # doesn't work otherwise
         # i think CORDEX datasets don't get retracted but simply deleted from ESGF
         del params["retracted"]
+    if "CORDEX-Reklies" in facets.values():
+        # see comment in params module
+        del facets["product"]
 
     # combine params and facets
     params = params | facets
