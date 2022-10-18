@@ -29,6 +29,20 @@ cmip6_params = base_params | {"retracted": "false"}
 cordex_params = base_params.copy()
 
 # this needs refactoring when you request the dataset_id template from ESGF servers
-id_templates = {"CMIP6": cmip6_template, "CORDEX": cordex_template}
+id_templates = {
+    "CMIP6": cmip6_template,
+    "CORDEX": cordex_template,
+    "CORDEX-Reklies": cordex_template,
+}
 
-request_params = {"CMIP6": cmip6_params, "CORDEX": cordex_params}
+request_params = {
+    "CMIP6": cmip6_params,
+    "CORDEX": cordex_params,
+    "CORDEX-Reklies": cordex_params,
+}
+
+
+# There is another problem with CORDEX-Reklies, e.g.
+# "cordex-reklies.output.EUR-11.GERICS.MIROC-MIROC5.historical.r1i1p1.REMO2015.v1.mon.tas"
+# The product="output" facet will give no result although the dataset_id clearly says it's "output".
+# However the API result is empty list, so the output facet has to be removed when CORDEX-Reklies is searched, hmmm...

@@ -24,8 +24,12 @@ def facets_from_iid(iid: str, project: str = None) -> Dict[str, str]:
     """Translates iid string to facet dict according to CMIP6 naming scheme"""
     if project is None:
         # take project id from first iid entry by default
-        project = iid.split(".")[0]
+        project = ensure_project_str(iid.split(".")[0])
+    iid = f"{project}." + ".".join(iid.split(".")[1:])
     iid_name_template = id_templates[project]
+    # this does not work yet with CORDEX project
+    # template = get_dataset_id_template(project)
+    # facet_names = facets_from_template(template)
     facets = {}
     for name, value in zip(iid_name_template.split("."), iid.split(".")):
         facets[name] = value
