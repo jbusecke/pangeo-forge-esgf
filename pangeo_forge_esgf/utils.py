@@ -20,11 +20,16 @@ def ensure_project_str(project: str) -> str:
     return project
 
 
+def project_from_iid(iid: str) -> str:
+    """Get project information from first iid entry"""
+    return ensure_project_str(iid.split(".")[0])
+
+
 def facets_from_iid(iid: str, project: str = None) -> Dict[str, str]:
     """Translates iid string to facet dict according to CMIP6 naming scheme"""
     if project is None:
         # take project id from first iid entry by default
-        project = ensure_project_str(iid.split(".")[0])
+        project = project_from_iid(iid)
     iid = f"{project}." + ".".join(iid.split(".")[1:])
     iid_name_template = id_templates[project]
     # this does not work yet with CORDEX project
@@ -33,6 +38,9 @@ def facets_from_iid(iid: str, project: str = None) -> Dict[str, str]:
     facets = {}
     for name, value in zip(iid_name_template.split("."), iid.split(".")):
         facets[name] = value
+    if project == "CORDEX-Reklies":
+        # see comment in params module
+        del facets["product"]
     return facets
 
 

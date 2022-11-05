@@ -13,20 +13,21 @@ known_projects = [
 
 # dataset id templates
 cmip6_template = "mip_era.activity_id.institution_id.source_id.experiment_id.variant_label.table_id.variable_id.grid_label.version"
-cordex_template = "project.product.domain.institute.driving_model.experiment.ensemble.rcm_name.rcm_version.time_frequency.variable"
+cordex_template = "project.product.domain.institute.driving_model.experiment.ensemble.rcm_name.rcm_version.time_frequency.variable.version"
 
 # request params
 base_params = {
-    "type": "Dataset",
+    "type": "File",
     "format": "application/solr+json",
-    "fields": "instance_id",
+    #"fields": "instance_id",
+    "fields": "url,size,table_id,title,instance_id,replica,data_node,frequency,time_frequency",
     "latest": "true",
     "distrib": "true",
     "limit": 500,
 }
 
 cmip6_params = base_params | {"retracted": "false"}
-cordex_params = base_params.copy()
+cordex_params = base_params | {}
 
 # this needs refactoring when you request the dataset_id template from ESGF servers
 id_templates = {

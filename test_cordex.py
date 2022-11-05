@@ -19,7 +19,7 @@ sslcontext.load_cert_chain(manager.esgf_credentials)
 iids = [
     "cordex.output.EUR-11.GERICS.ECMWF-ERAINT.evaluation.r1i1p1.REMO2015.v1.mon.tas.v20180813",
     "cordex.output.EUR-44.MPI-CSC.MPI-M-MPI-ESM-LR.historical.r1i1p1.REMO2009.v1.mon.tas.v20150609",
-    "cordex-reklies.output.EUR-11.GERICS.MIROC-MIROC5.historical.r1i1p1.REMO2015.v1.mon.tas",
+    "cordex-reklies.output.EUR-11.GERICS.MIROC-MIROC5.historical.r1i1p1.REMO2015.v1.mon.tas.v20170329",
 ]
 
 recipe_inputs = asyncio.run(generate_recipe_inputs_from_iids(iids, ssl=sslcontext))

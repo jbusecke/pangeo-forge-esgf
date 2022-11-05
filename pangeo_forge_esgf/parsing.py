@@ -8,8 +8,6 @@ def request_from_facets(url, project, **facets):
     params = request_params[project].copy()
     params.update(facets)
     params["project"] = project
-    if project == "CORDEX-Reklies":
-        del params["product"]
     return requests.get(url=url, params=params)
 
 

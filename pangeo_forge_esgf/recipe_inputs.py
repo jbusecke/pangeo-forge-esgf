@@ -5,7 +5,8 @@ from typing import Dict, List, Union
 import aiohttp
 
 from .dynamic_kwargs import response_data_processing
-from .utils import facets_from_iid
+from .utils import facets_from_iid, project_from_iid
+from .params import request_params
 
 # global variables
 search_node_list = [
@@ -83,8 +84,10 @@ async def generate_recipe_inputs_from_iids(
 
         tasks = []
         for iid in iid_list:
+            project = project_from_iid(iid)
+            params = request_params[project]
             tasks.append(
-                asyncio.ensure_future(iid_request(session, iid, search_node, ssl=ssl))
+                asyncio.ensure_future(iid_request(session, iid, search_node, params, ssl))
             )
 
         raw_input = await asyncio.gather(*tasks)
@@ -128,34 +131,12 @@ async def _esgf_api_request(
     session: aiohttp.ClientSession, node: str, iid: str, params: Dict[str, str]
 ) -> Dict[str, str]:
 
-    # set default search parameters
-    # `frequency` contains the frequency in CMIP6, obs4MIPs and input4MIPs
-    # `time_frequency` is CMIP5 and CORDEX vocabulary
-    # this could be easier modified within an object oriented approach...
-    default_params = {
-        "type": "File",
-        "retracted": "false",
-        "format": "application/solr+json",
-        "fields": "url,size,table_id,title,instance_id,replica,data_node,frequency,time_frequency",
-        "latest": "true",
-        "distrib": "true",
-        "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
-    }
-
-    params = default_params | params
     facets = facets_from_iid(iid)
     # if we use latest in the params we cannot use version
     # TODO: We might want to be specific about the version here and use latest in the 'parsing' logic only. Needs discussion.
     if params["latest"] == "true":
         if "version" in facets:
             del facets["version"]
-    if "CORDEX" in facets.values():
-        # doesn't work otherwise
-        # i think CORDEX datasets don't get retracted but simply deleted from ESGF
-        del params["retracted"]
-    if "CORDEX-Reklies" in facets.values():
-        # see comment in params module
-        del facets["product"]
 
     # combine params and facets
     params = params | facets
@@ -171,6 +152,7 @@ async def _esgf_api_request(
 
     if len(resp_data) == 0:
         raise ValueError(f"No Files were found for {iid}")
+        
     # Since we have hacked CORDEX special case above, i'll do it here again:
     # rename to common CMIP vocabulary if neccessary
     resp_data = [
