@@ -5,8 +5,8 @@ from typing import Dict, List, Union
 import aiohttp
 
 from .dynamic_kwargs import response_data_processing
-from .utils import facets_from_iid, project_from_iid
 from .params import request_params
+from .utils import facets_from_iid, project_from_iid
 
 # global variables
 search_node_list = [
@@ -87,7 +87,9 @@ async def generate_recipe_inputs_from_iids(
             project = project_from_iid(iid)
             params = request_params[project]
             tasks.append(
-                asyncio.ensure_future(iid_request(session, iid, search_node, params, ssl))
+                asyncio.ensure_future(
+                    iid_request(session, iid, search_node, params, ssl)
+                )
             )
 
         raw_input = await asyncio.gather(*tasks)
@@ -152,7 +154,7 @@ async def _esgf_api_request(
 
     if len(resp_data) == 0:
         raise ValueError(f"No Files were found for {iid}")
-        
+
     # Since we have hacked CORDEX special case above, i'll do it here again:
     # rename to common CMIP vocabulary if neccessary
     resp_data = [

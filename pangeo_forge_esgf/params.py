@@ -19,7 +19,7 @@ cordex_template = "project.product.domain.institute.driving_model.experiment.ens
 base_params = {
     "type": "File",
     "format": "application/solr+json",
-    #"fields": "instance_id",
+    # "fields": "instance_id",
     "fields": "url,size,table_id,title,instance_id,replica,data_node,frequency,time_frequency",
     "latest": "true",
     "distrib": "true",
