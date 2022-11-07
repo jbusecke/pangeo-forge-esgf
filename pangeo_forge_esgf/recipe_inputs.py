@@ -133,6 +133,8 @@ async def _esgf_api_request(
     session: aiohttp.ClientSession, node: str, iid: str, params: Dict[str, str]
 ) -> Dict[str, str]:
 
+    params["type"] = "File"
+
     facets = facets_from_iid(iid)
     # if we use latest in the params we cannot use version
     # TODO: We might want to be specific about the version here and use latest in the 'parsing' logic only. Needs discussion.
