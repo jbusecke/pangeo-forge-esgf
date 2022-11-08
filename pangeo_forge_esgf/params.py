@@ -36,6 +36,7 @@ id_templates = {
     "CORDEX": cordex_template,
     "CORDEX-Reklies": cordex_template,
     "CORDEX-Adjust": cordex_adjust_template,
+    "CORDEX-ESD": cordex_template,
 }
 
 request_params = {
@@ -43,6 +44,7 @@ request_params = {
     "CORDEX": cordex_params,
     "CORDEX-Reklies": cordex_params,
     "CORDEX-Adjust": cordex_params,
+    "CORDEX-ESD": cordex_params,
 }
 
 

@@ -37,6 +37,7 @@ def test_cordex_projects():
         "cordex.output.EUR-44.MPI-CSC.MPI-M-MPI-ESM-LR.*.r1i1p1.REMO2009.v1.mon.tas",
         "cordex-reklies.*.EUR-11.GERICS.*.historical.r1i1p1.REMO2015.v1.mon.tas",
         "cordex-adjust.*.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.*.r1i1p1.REMO2009.*.mon.tasAdjust",
+        "cordex-esd.*.EUR-11.*.MPI-M-MPI-ESM-LR.*.r1i1p1.*.*.mon.tas",
     ]
     iids = []
     for piid in parse_iids:
@@ -58,6 +59,10 @@ def test_cordex_projects():
         "cordex-adjust.bias-adjusted-output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.rcp45.r1i1p1.REMO2009.v1-SMHI-DBS45-MESAN-1989-2010.mon.tasAdjust.v20160919",
         "cordex-adjust.bias-adjusted-output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.rcp26.r1i1p1.REMO2009.v1-SMHI-DBS45-MESAN-1989-2010.mon.tasAdjust.v20160919",
         "cordex-adjust.bias-adjusted-output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.rcp85.r1i1p1.REMO2009.v1-SMHI-DBS45-MESAN-1989-2010.mon.tasAdjust.v20160919",
+        "cordex-esd.output.EUR-11.DWD.MPI-M-MPI-ESM-LR.rcp45.r1i1p1.EPISODES2018.v1-r1.mon.tas.v20180409",
+        "cordex-esd.output.EUR-11.DWD.MPI-M-MPI-ESM-LR.historical.r1i1p1.EPISODES2018.v1-r1.mon.tas.v20180409",
+        "cordex-esd.output.EUR-11.DWD.MPI-M-MPI-ESM-LR.rcp85.r1i1p1.EPISODES2018.v1-r1.mon.tas.v20180409",
+        "cordex-esd.output.EUR-11.DWD.MPI-M-MPI-ESM-LR.rcp26.r1i1p1.EPISODES2018.v1-r1.mon.tas.v20180409",
     ]
 
     for iid in expected_iids:
