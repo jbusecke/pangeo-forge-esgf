@@ -56,6 +56,7 @@ def logon():
 iids = [
     "cordex-reklies.output.EUR-11.GERICS.MIROC-MIROC5.historical.r1i1p1.REMO2015.v1.mon.tas",
     "cordex.output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.historical.r1i1p1.REMO2009.v1.mon.tas",
+    "cordex-adjust.bias-adjusted-output.EUR-11.MPI-CSC.MPI-M-MPI-ESM-LR.rcp45.r1i1p1.REMO2009.v1-SMHI-DBS45-MESAN-1989-2010.mon.tasAdjust.v20160919",
 ]
 
 sslcontext = logon()
@@ -66,7 +67,7 @@ recipes = create_recipes(iids, sslcontext)
 setup_logging()
 
 # Prune the recipe
-recipe_pruned = recipes[iids[0]].copy_pruned()
+recipe_pruned = recipes[iids[2]].copy_pruned()
 
 # Run the recipe
 run_function = recipe_pruned.to_function()

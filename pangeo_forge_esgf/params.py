@@ -4,16 +4,17 @@ known_projects = [
     "CMIP5",
     "obs4MIPs",
     "input4MIPs",
-    "CORDEX",
-    "CORDEX-Reklies",
-    "CORDEX-Adjust",
-    "CORDEX-ESD",
+    "CORDEX",  # Usual Cordex datasets from CMIP5 downscaling
+    "CORDEX-Reklies",  # This is Downscaling from Reklies project
+    "CORDEX-Adjust",  # Bias adjusted output
+    "CORDEX-ESD",  # Statistical downscaling
 ]
 
 
 # dataset id templates
 cmip6_template = "mip_era.activity_id.institution_id.source_id.experiment_id.variant_label.table_id.variable_id.grid_label.version"
 cordex_template = "project.product.domain.institute.driving_model.experiment.ensemble.rcm_name.rcm_version.time_frequency.variable.version"
+cordex_adjust_template = "project.product.domain.institute.driving_model.experiment.ensemble.rcm_name.bias_adjustment.time_frequency.variable.version"
 
 # request params
 base_params = {
@@ -34,12 +35,14 @@ id_templates = {
     "CMIP6": cmip6_template,
     "CORDEX": cordex_template,
     "CORDEX-Reklies": cordex_template,
+    "CORDEX-Adjust": cordex_adjust_template,
 }
 
 request_params = {
     "CMIP6": cmip6_params,
     "CORDEX": cordex_params,
     "CORDEX-Reklies": cordex_params,
+    "CORDEX-Adjust": cordex_params,
 }
 
 

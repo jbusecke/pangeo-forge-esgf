@@ -62,3 +62,8 @@ def facets_from_template(template: str):
     """Parse the (dataset_id) string template into a list of (facet) keys"""
     regex = r"\((.*?)\)"
     return re.findall(regex, template)
+
+
+def request_project_facets(project: str, url: str = None):
+    template = get_dataset_id_template(project, url)
+    return facets_from_template(template)
