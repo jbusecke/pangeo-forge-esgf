@@ -1,10 +1,12 @@
 import asyncio
+import ssl
 from typing import Dict, List, Union
 
 import aiohttp
 
 from .dynamic_kwargs import response_data_processing
-from .utils import facets_from_iid
+from .params import request_params
+from .utils import facets_from_iid, project_from_iid
 
 # global variables
 search_node_list = [
@@ -48,6 +50,8 @@ data_nodes = [
     "esgf.ichec.ie",
     "esgf.nci.org.au",
     "esgf.rcec.sinica.edu.tw",
+    "esgf1.dkrz.de",
+    "esgf2.dkrz.de",
     "esgf3.dkrz.de",
     "noresg.nird.sigma2.no",
     "polaris.pknu.ac.kr",
@@ -56,7 +60,7 @@ data_nodes = [
 
 
 async def generate_recipe_inputs_from_iids(
-    iid_list: List[str],
+    iid_list: List[str], ssl: ssl.SSLContext = None
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
@@ -80,7 +84,13 @@ async def generate_recipe_inputs_from_iids(
 
         tasks = []
         for iid in iid_list:
-            tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
+            project = project_from_iid(iid)
+            params = request_params[project]
+            tasks.append(
+                asyncio.ensure_future(
+                    iid_request(session, iid, search_node, params, ssl)
+                )
+            )
 
         raw_input = await asyncio.gather(*tasks)
         recipe_inputs = {
@@ -97,19 +107,24 @@ async def generate_recipe_inputs_from_iids(
 
 
 async def iid_request(
-    session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}
+    session: aiohttp.ClientSession,
+    iid: str,
+    node: List[str],
+    params: Dict = {},
+    ssl: ssl.SSLContext = None,
 ):
     urls = None
     kwargs = None
 
     print(f"Requesting data for Node: {node} and {iid}...")
     response_data = await _esgf_api_request(session, node, iid, params)
-
     print(f"Filtering response data for {iid}...")
     filtered_response_data = await sort_and_filter_response(response_data, session)
 
     print(f"Determining dynamics kwargs for {iid}...")
-    urls, kwargs = await response_data_processing(session, filtered_response_data, iid)
+    urls, kwargs = await response_data_processing(
+        session, filtered_response_data, iid, ssl
+    )
 
     return urls, kwargs
 
@@ -118,18 +133,8 @@ async def _esgf_api_request(
     session: aiohttp.ClientSession, node: str, iid: str, params: Dict[str, str]
 ) -> Dict[str, str]:
 
-    # set default search parameters
-    default_params = {
-        "type": "File",
-        "retracted": "false",
-        "format": "application/solr+json",
-        "fields": "url,size,table_id,title,instance_id,replica,data_node",
-        "latest": "true",
-        "distrib": "true",
-        "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
-    }
+    params["type"] = "File"
 
-    params = default_params | params
     facets = facets_from_iid(iid)
     # if we use latest in the params we cannot use version
     # TODO: We might want to be specific about the version here and use latest in the 'parsing' logic only. Needs discussion.
@@ -148,8 +153,16 @@ async def _esgf_api_request(
         content_type="text/json"
     )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
     resp_data = resp_data["response"]["docs"]
+
     if len(resp_data) == 0:
         raise ValueError(f"No Files were found for {iid}")
+
+    # Since we have hacked CORDEX special case above, i'll do it here again:
+    # rename to common CMIP vocabulary if neccessary
+    resp_data = [
+        {"frequency" if k == "time_frequency" else k: v for k, v in r.items()}
+        for r in resp_data
+    ]
     return resp_data
 
 
@@ -221,7 +234,6 @@ async def pick_data_node(
 ) -> Dict[str, Dict[str, str]]:
     """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
     test_response_list = response_groups.get(list(response_groups.keys())[0])
-
     # Determine preferred data node
     for data_node in data_nodes:
         print(f"DEBUG: Testing data node: {data_node}")
@@ -231,7 +243,7 @@ async def pick_data_node(
         if len(matching_data_nodes) == 1:
             matching_data_node = matching_data_nodes[0]  # TODO: this is kinda clunky
             status = await check_url(matching_data_node["url"], session)
-            if status in [200, 308]:
+            if status in [200, 302, 308]:
                 picked_data_node = data_node
                 print(f"DEBUG: Picking preferred data_node: {picked_data_node}")
                 break
