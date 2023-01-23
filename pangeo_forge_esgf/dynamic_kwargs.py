@@ -13,9 +13,7 @@ monthly_divisors = sorted(
     # TODO: I might not want to allow this in the ocean and ice fields. Lets see
 )
 
-daily_divisors = sorted(
-    [1, 30, 360, 365, 3653]
-)
+daily_divisors = sorted([1, 30, 360, 365, 3653])
 
 allowed_divisors = {
     "Omon": monthly_divisors,
