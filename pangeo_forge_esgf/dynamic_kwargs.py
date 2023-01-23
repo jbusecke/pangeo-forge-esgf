@@ -15,7 +15,6 @@ monthly_divisors = sorted(
 
 daily_divisors = sorted(
     [1, 30, 360, 365, 3653]
-    # TODO: It  might be more efficient to default to the underlying file chunks?
 )
 
 allowed_divisors = {
