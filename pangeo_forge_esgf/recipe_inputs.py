@@ -77,7 +77,6 @@ async def generate_recipe_inputs_from_iids(
     # combined with a retry.
     timeout = aiohttp.ClientTimeout(total=40)
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-
         tasks = []
         for iid in iid_list:
             tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
@@ -117,7 +116,6 @@ async def iid_request(
 async def _esgf_api_request(
     session: aiohttp.ClientSession, node: str, iid: str, params: Dict[str, str]
 ) -> Dict[str, str]:
-
     # set default search parameters
     default_params = {
         "type": "File",

@@ -99,7 +99,6 @@ async def response_data_processing(
     response_data: List[Dict[str, str]],
     iid: str,
 ) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
-
     table_id = facets_from_iid(iid).get("table_id")
     urls = [r["url"] for r in response_data]
     sizes = [r["size"] for r in response_data]
