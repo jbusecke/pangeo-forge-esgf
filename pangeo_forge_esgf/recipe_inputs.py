@@ -16,7 +16,8 @@ search_node_list = [
 # This is useless. If the nodes are up, they all return the same results since we are using distributed queries
 # TODO: Rather check if any of these is down and determine our preferred one
 # For now just use llnl
-search_node = search_node_list[0]
+# search_node = search_node_list[0]
+search_node = search_node_list[1]
 
 # Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
 data_nodes = [
