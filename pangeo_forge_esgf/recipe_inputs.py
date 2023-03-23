@@ -54,8 +54,7 @@ data_nodes = [
     "vesg.ipsl.upmc.fr",
 ]
 
-
-async def generate_recipe_inputs_from_iids(
+async def generate_urls_from_iids(
     iid_list: List[str],
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
@@ -81,10 +80,10 @@ async def generate_recipe_inputs_from_iids(
         for iid in iid_list:
             tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
 
-        raw_input = await asyncio.gather(*tasks)
+        raw_urls = await asyncio.gather(*tasks)
         recipe_inputs = {
-            iid: {"urls": urls, **kwargs}
-            for iid, (urls, kwargs) in zip(iid_list, raw_input)
+            iid: urls
+            for iid, urls in zip(iid_list, raw_urls)
             if urls is not None
         }
 
@@ -99,7 +98,6 @@ async def iid_request(
     session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}
 ):
     urls = None
-    kwargs = None
 
     print(f"Requesting data for Node: {node} and {iid}...")
     response_data = await _esgf_api_request(session, node, iid, params)
@@ -107,10 +105,10 @@ async def iid_request(
     print(f"Filtering response data for {iid}...")
     filtered_response_data = await sort_and_filter_response(response_data, session)
 
-    print(f"Determining dynamics kwargs for {iid}...")
-    urls, kwargs = await response_data_processing(session, filtered_response_data, iid)
+    print(f"Getting urls for {iid}...")
+    urls = await response_data_processing(session, filtered_response_data, iid)
 
-    return urls, kwargs
+    return urls
 
 
 async def _esgf_api_request(
@@ -121,7 +119,8 @@ async def _esgf_api_request(
         "type": "File",
         "retracted": "false",
         "format": "application/solr+json",
-        "fields": "url,size,table_id,title,instance_id,replica,data_node",
+        # "fields": "url,size,table_id,title,instance_id,replica,data_node",
+        "fields": "url,table_id,title,instance_id,replica,data_node",
         "latest": "true",
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
@@ -243,6 +242,9 @@ async def pick_data_node(
     # loop through all groups and filter for the picked data node
     modified_response_groups = {}
     for k, response_list in response_groups.items():
+        print(picked_data_node)
+        print(response_list)
+        # FIXME: There is a bug here, where the response_list is empty for some reason
         # This ensures that we only get one item
         [picked_data_node_response] = [
             r for r in response_list if r["data_node"] == picked_data_node
