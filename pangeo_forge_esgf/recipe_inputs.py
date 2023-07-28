@@ -3,7 +3,6 @@ from typing import Dict, List, Union
 
 import aiohttp
 
-from .dynamic_kwargs import response_data_processing
 from .utils import facets_from_iid
 
 # global variables
@@ -20,39 +19,12 @@ search_node_list = [
 search_node = search_node_list[1]
 
 # Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
-data_nodes = [
+# restrictign this to us nodes for performance reasons
+preferred_data_nodes = [
     "esgf-data1.llnl.gov",
     "esgf-data2.llnl.gov",
     "aims3.llnl.gov",
     "esgdata.gfdl.noaa.gov",
-    "esgf-data.ucar.edu",
-    "dpesgf03.nccs.nasa.gov",
-    "crd-esgf-drc.ec.gc.ca",
-    "cmip.bcc.cma.cn",
-    "cmip.dess.tsinghua.edu.cn",
-    "cmip.fio.org.cn",
-    "dist.nmlab.snu.ac.kr",
-    "esg-cccr.tropmet.res.in",
-    "esg-dn1.nsc.liu.se",
-    "esg-dn2.nsc.liu.se",
-    "esg.camscma.cn",
-    "esg.lasg.ac.cn",
-    "esg1.umr-cnrm.fr",
-    "esgf-cnr.hpc.cineca.it",
-    "esgf-data2.diasjp.net",
-    "esgf-data3.ceda.ac.uk",
-    "esgf-data3.diasjp.net",
-    "esgf-nimscmip6.apcc21.org",
-    "esgf-node2.cmcc.it",
-    "esgf.bsc.es",
-    "esgf.dwd.de",
-    "esgf.ichec.ie",
-    "esgf.nci.org.au",
-    "esgf.rcec.sinica.edu.tw",
-    "esgf3.dkrz.de",
-    "noresg.nird.sigma2.no",
-    "polaris.pknu.ac.kr",
-    "vesg.ipsl.upmc.fr",
 ]
 
 async def generate_urls_from_iids(
@@ -72,7 +44,8 @@ async def generate_urls_from_iids(
     """
     # Lets limit the amount of connections to avoid being flagged
     connector = aiohttp.TCPConnector(
-        limit_per_host=10
+        # limit_per_host=10
+        limit_per_host=100
     )  # Not sure we need a timeout now, but this might be useful in the future
     # combined with a retry.
     timeout = aiohttp.ClientTimeout(total=40)
@@ -100,14 +73,18 @@ async def iid_request(
 ):
     urls = None
 
-    print(f"Requesting data for Node: {node} and {iid}...")
+    print(f"{iid=}: Requesting data from search node {node}")
     response_data = await _esgf_api_request(session, node, iid, params)
 
-    print(f"Filtering response data for {iid}...")
-    filtered_response_data = await sort_and_filter_response(response_data, session)
+    print(f"{iid=}: Filtering response data")
+    filtered_response_data = await sort_and_filter_response(response_data, session, iid)
 
-    print(f"Getting urls for {iid}...")
-    urls = await response_data_processing(session, filtered_response_data, iid)
+    if len(filtered_response_data) == 0:
+        print(f"{iid=}: Not able to find responsive data node for all files. Maybe retry?")
+    else: 
+        print(f"{iid=}: Getting urls")
+        urls = [r["url"] for r in filtered_response_data]
+        print(f"{iid=}: Found {len(urls)} urls {urls=}")
 
     return urls
 
@@ -141,33 +118,38 @@ async def _esgf_api_request(
     resp = await session.get(node, params=params)
     status_code = resp.status
     if not status_code == 200:
-        raise RuntimeError(f"Request failed with {status_code} for {iid}")
+        raise RuntimeError(f"{iid=}: Request failed with {status_code}")
     resp_data = await resp.json(
         content_type="text/json"
     )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
     resp_data = resp_data["response"]["docs"]
     if len(resp_data) == 0:
-        raise ValueError(f"No Files were found for {iid}")
+        raise ValueError(f"{iid=}: No Files were found")
     return resp_data
 
 
 async def check_url(url, session):
     try:
-        async with session.head(url, timeout=5) as resp:
+        async with session.head(url, timeout=30) as resp:
             return resp.status
     except asyncio.exceptions.TimeoutError:
         return 503  # TODO: Is this best practice?
+    except aiohttp.client_exceptions.ClientConnectorError:
+        return 503 # TODO: Same here
+    
 
 
 async def sort_and_filter_response(
-    response: List[Dict[str, str]], session: aiohttp.ClientSession
+    response: List[Dict[str, str]],
+    session: aiohttp.ClientSession,
+    iid: str
 ) -> List[Dict[str, str]]:
     """This function takes the input of the ESGF API query with possible duplicates of filenames.
     It applies logic to choose between duplicate urls, and returns a list of dictionaries containing
     only the filtered urls and sorted by chronological order based on dates in the filenames.
     """
     # modify url to our preferred format (for now only http)
-    response = [_pick_url_type(r) for r in response]
+    http_only_response = [_pick_url_type(r) for r in response]
 
     # ok with this we get a bunch of duplicate urls.
     # What we want to do here is now:
@@ -175,14 +157,14 @@ async def sort_and_filter_response(
     # - for each group, check if non-replica is available, otherwise sort by url preference list
 
     # TODO: Is there a way to know if I got all the filenames that exist?
-    filenames = list(set([r["title"] for r in response]))
+    filenames = list(set([r["title"] for r in http_only_response]))
     filename_groups = {fn: [] for fn in filenames}
 
-    for r in response:
+    for r in http_only_response:
         filename_groups[r["title"]].append(r)
 
     # now filter the remaining
-    filtered_filename_groups = await pick_data_node(filename_groups, session)
+    filtered_filename_groups = await pick_data_node(filename_groups, session, iid)
 
     # convert the keys to dates to get urls in chronological order (needed later for the recipe)
     filtered_filename_groups = {
@@ -215,44 +197,96 @@ def _pick_url_type(response):
 
 
 async def pick_data_node(
-    response_groups: Dict[str, List[Dict[str, str]]], session: aiohttp.ClientSession
+    response_groups: Dict[str, List[Dict[str, str]]],
+    session: aiohttp.ClientSession,
+    iid: str,
+    allow_mixed_nodes: bool = True,
 ) -> Dict[str, Dict[str, str]]:
     """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
-    test_response_list = response_groups.get(list(response_groups.keys())[0])
+    # # Response group example: 
+    # keys correspond to filenames for a single iid
+    # values are a list of dicts with attributes for each location of a specific file.
+    # {'psl_day_EC-Earth3_ssp585_r136i1p1f1_gr_20500101-20501231.nc':
+    # [{
+    #     'data_node': 'esg-dn1.nsc.liu.se',
+    #     'instance_id': 'CMIP6.ScenarioMIP.EC-Earth-Consortium.EC-Earth3.ssp585.r136i1p1f1.day.psl.gr.v20200412.psl_day_EC-Earth3_ssp585_r136i1p1f1_gr_20500101-20501231.nc',
+    #     'replica': False,
+    #     'table_id': ['day'],
+    #     'title': 'psl_day_EC-Earth3_ssp585_r136i1p1f1_gr_20500101-20501231.nc',
+    #     'url': 'http://esg-dn1.nsc.liu.se/thredds/fileServer/esg_dataroot9/cmip6data/CMIP6/ScenarioMIP/EC-Earth-Consortium/EC-Earth3/ssp585/r136i1p1f1/day/psl/gr/v20200412/psl_day_EC-Earth3_ssp585_r136i1p1f1_gr_20500101-20501231.nc',
+    #     'score': 1.0}
+    #     ],
+    #     ...
+    # }
 
-    # Determine preferred data node
-    for data_node in data_nodes:
-        print(f"DEBUG: Testing data node: {data_node}")
-        matching_data_nodes = [
-            r for r in test_response_list if r["data_node"] == data_node
-        ]
-        if len(matching_data_nodes) == 1:
-            matching_data_node = matching_data_nodes[0]  # TODO: this is kinda clunky
-            status = await check_url(matching_data_node["url"], session)
-            if status in [200, 308]:
-                picked_data_node = data_node
-                print(f"DEBUG: Picking preferred data_node: {picked_data_node}")
+    # TODO: We could make this logic easier by just taking the first available data node *per* file. 
+    # This might also lead to unforseen issues, so lets for now say we want all files to be 
+    # available on a single data node
+    def find_data_nodes(response_list:List[Dict[str, str]]) -> List[str]:
+        nodes = []
+        for r in response_list:
+                    dn = r['data_node']
+                    if dn not in preferred_data_nodes:
+                        nodes.append(dn)
+        return nodes
+
+    if allow_mixed_nodes:
+        print(f"{iid=}: Allowing mixed data nodes")
+        filename_response_groups = {}
+        for filename, response_list in response_groups.items():
+            for r in response_list:
+                # TODO: If this is successful I could implement a 'preferred data node' logic here as well. 
+                # First check the urls matching the preferred data node, then check the rest.
+                status = await check_url(r['url'], session) 
+                # TODO: It would be neat if we can do this checking concurrently and cancel once we get a response.
+                # This would maybe self-select the preferred data node in a way.
+                if status in [200, 206]:
+                    filename_response_groups[filename] = r
+                    break
+        single_response_dict = filename_response_groups 
+        # diagnose how many datanodes we used
+        data_nodes_used = list(set([r['data_node'] for r in single_response_dict.values()]))
+        print(f"{iid=}: Data Nodes used: {data_nodes_used}")
+    else:
+        # get all data nodes available
+        data_nodes = []
+        for filename, response_list in response_groups.items():
+            data_nodes += find_data_nodes(response_list)
+        data_nodes = list(set(data_nodes)) # only retain unique values
+        print(f"{iid=}: Data Nodes inferred from responses: {data_nodes}")
+        # now concat the preferred and inferred nodes, making sure that the preferred are looped over first
+        data_nodes = preferred_data_nodes + data_nodes
+
+        # split response groups by data node
+        data_node_response_group = {}
+        for data_node in data_nodes:
+            print(f"{iid=}: Checking {data_node=}")
+            data_node_dict = {}
+            for filename, response_list in response_groups.items():
+                matching_responses = []
+                for r in response_list:
+                    if r['data_node'] == data_node:
+                        status = await check_url(r["url"], session)
+                        if status in [200, 308]:
+                            matching_responses.append(r)
+                if len(matching_responses) == 1:
+                    data_node_dict[filename] = matching_responses[0]
+                elif len(matching_responses)>1:
+                    raise ValueError(
+                        f"{iid}: Found two urls for {filename=} and {data_node=}. Got {matching_responses}"
+                        )
+            # Check that all files are available on the particular data_node
+            all_filenames = set(response_groups.keys())
+            found_filenames = set(data_node_dict.keys())
+            missing_filenames = list(
+                all_filenames - found_filenames
+                )
+            if len(missing_filenames) > 0:
+                print(f"{iid=}: Could only find {len(found_filenames)}/{len(all_filenames)} filenames on {data_node=}. {missing_filenames=}")
+            else: 
+                data_node_response_group = data_node_dict
+                print(f"{iid=}: Found all files for {data_node=}")
                 break
-            else:
-                print(f"Got status {status} for {matching_data_node['instance_id']}")
-        elif len(matching_data_nodes) == 0:
-            print(f"DEBUG: Data node: {data_node} not available")
-        else:
-            raise  # this should never happen
+        single_response_dict = data_node_response_group
 
-    # loop through all groups and filter for the picked data node
-    modified_response_groups = {}
-    for k, response_list in response_groups.items():
-        print(picked_data_node)
-        print(response_list)
-        # FIXME: There is a bug here, where the response_list is empty for some reason
-        # This ensures that we only get one item
-        [picked_data_node_response] = [
-            r for r in response_list if r["data_node"] == picked_data_node
-        ]
-        modified_response_groups[k] = picked_data_node_response
-
-    # Check that all keys (filenames) have a value
-    assert set(response_groups.keys()) == set(modified_response_groups.keys())
-
-    return modified_response_groups
+    return single_response_dict
