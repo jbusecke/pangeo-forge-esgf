@@ -2,6 +2,7 @@ import asyncio
 from typing import Dict, List, Union
 
 import aiohttp
+import backoff
 
 from .utils import facets_from_iid
 
@@ -48,8 +49,9 @@ async def generate_urls_from_iids(
         limit_per_host=100
     )  # Not sure we need a timeout now, but this might be useful in the future
     # combined with a retry.
-    timeout = aiohttp.ClientTimeout(total=40)
-    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+    # timeout = aiohttp.ClientTimeout(total=40)
+    # timeout=timeout, 
+    async with aiohttp.ClientSession(connector=connector) as session:
         tasks = []
         for iid in iid_list:
             tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
@@ -127,17 +129,21 @@ async def _esgf_api_request(
         raise ValueError(f"{iid=}: No Files were found")
     return resp_data
 
+def backoff_hdlr(details):
+    print ("iid='{args[0]}': Backing off {wait:0.1f} seconds after {tries} tries "
+           "calling function {target} with args {args} and kwargs "
+           "{kwargs}".format(**details))
 
-async def check_url(url, session):
-    try:
-        async with session.head(url, timeout=30) as resp:
-            return resp.status
-    except asyncio.exceptions.TimeoutError:
-        return 503  # TODO: Is this best practice?
-    except aiohttp.client_exceptions.ClientConnectorError:
-        return 503 # TODO: Same here
-    
-
+@backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientError,
+        max_tries=3,
+        max_time=300, 
+        on_backoff=backoff_hdlr
+        )
+async def check_url(iid: str, url: str, session: aiohttp.ClientSession, timeout: int) -> int:
+    async with session.head(url, timeout=10, raise_for_status=True) as resp:
+        return resp.status
 
 async def sort_and_filter_response(
     response: List[Dict[str, str]],
@@ -229,20 +235,72 @@ async def pick_data_node(
                     if dn not in preferred_data_nodes:
                         nodes.append(dn)
         return nodes
+    
+    # tasks = []
+    # for iid in iid_list:
+    #     tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
+
+    # raw_urls = await asyncio.gather(*tasks)
+
+    # async def get_data_nodes_for_file(
+    #         iid: str,
+    #         filename: str,
+    #         response_list: List[Dict[str, str]]
+    # ) -> Dict[str, str]:
+    #     """Check every url for a given filename and list of responses 
+    #      (representing the same file on different data urls) and 
+    #      return the first response with a responsive url """
+    #     valid_responses = []
+    #     for r in response_list: 
+    #         # TODO: If this is successful I could implement a 'preferred data node' logic here as well. 
+    #         # First check the urls matching the preferred data node, then check the rest.
+    #         url = r['url']
+    #         try:
+    #             status = await check_url(iid, url, session, timeout=10) # maybe i coudl implement a backoff with increasing timeout here?
+    #             # TODO: It would be neat if we can do this checking concurrently and cancel once we get a response.
+    #             # This would maybe self-select the preferred data node in a way.
+    #             if status in [200, 206]:
+    #                 valid_responses.append(r)
+    #                 break
+    #         except Exception as e:
+    #             print(f"{iid=}: Checking {url=} failed with {e}")
+            
+    #     #make sure that only one valid response was populated
+    #     if len(valid_responses) == 1:
+    #         return valid_responses[0]
+    #     elif len(valid_responses) >2:
+    #         raise ValueError(f"{iid=}: More than one valid response ({valid_responses}) found for {filename=}. This should not happen.")
+
+        
 
     if allow_mixed_nodes:
         print(f"{iid=}: Allowing mixed data nodes")
         filename_response_groups = {}
-        for filename, response_list in response_groups.items():
-            for r in response_list:
+        tasks = []
+        for filename, response_list in response_groups.items(): #TODO: This could be done concurrently for each filename to save time
+            print('start filename blah blah')
+            
+            valid_responses = []
+            for r in response_list: 
                 # TODO: If this is successful I could implement a 'preferred data node' logic here as well. 
                 # First check the urls matching the preferred data node, then check the rest.
-                status = await check_url(r['url'], session) 
-                # TODO: It would be neat if we can do this checking concurrently and cancel once we get a response.
-                # This would maybe self-select the preferred data node in a way.
-                if status in [200, 206]:
-                    filename_response_groups[filename] = r
-                    break
+                url = r['url']
+                try:
+                    status = await check_url(iid, url, session, timeout=10) # maybe i coudl implement a backoff with increasing timeout here?
+                    # TODO: It would be neat if we can do this checking concurrently and cancel once we get a response.
+                    # This would maybe self-select the preferred data node in a way.
+                    if status in [200, 206]:
+                        valid_responses.append(r)
+                        break
+                except Exception as e:
+                    print(f"{iid=}: Checking {url=} failed with {e}")
+                
+            #make sure that only one valid response was populated
+            if len(valid_responses) == 1:
+                filename_response_groups[filename] = valid_responses[0]
+            elif len(valid_responses) >2:
+                raise ValueError(f"{iid=}: More than one valid response ({valid_responses}) found for {filename=}. This should not happen.")
+
         single_response_dict = filename_response_groups 
         # diagnose how many datanodes we used
         data_nodes_used = list(set([r['data_node'] for r in single_response_dict.values()]))
