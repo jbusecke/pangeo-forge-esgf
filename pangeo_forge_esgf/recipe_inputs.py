@@ -1,23 +1,10 @@
 import asyncio
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 import aiohttp
 import backoff
 
 from .utils import facets_from_iid
-
-# global variables
-search_node_list = [
-    "https://esgf-node.llnl.gov/esg-search/search",
-    "https://esgf-data.dkrz.de/esg-search/search",
-    "https://esgf-node.ipsl.upmc.fr/esg-search/search",
-    "https://esgf-index1.ceda.ac.uk/esg-search/search",
-]
-# This is useless. If the nodes are up, they all return the same results since we are using distributed queries
-# TODO: Rather check if any of these is down and determine our preferred one
-# For now just use llnl
-# search_node = search_node_list[0]
-search_node = search_node_list[1]
 
 # Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
 # restrictign this to us nodes for performance reasons
@@ -28,8 +15,38 @@ preferred_data_nodes = [
     "esgdata.gfdl.noaa.gov",
 ]
 
+async def generate_urls_from_iids_multi_nodes(iid_list: List[str], search_node_list: List[str]=None) -> Dict[str, Union[List[str], Dict[str, str]]]:
+    """Execute search over multiple search nodes and return the first successful result for each iid"""
+    if search_node_list is None:
+        search_node_list = [
+            "https://esgf-node.llnl.gov/esg-search/search",
+            "https://esgf-data.dkrz.de/esg-search/search",
+            "https://esgf-node.ipsl.upmc.fr/esg-search/search",
+            "https://esgf-index1.ceda.ac.uk/esg-search/search",
+        ]
+    node_url_dicts = []
+    remaining_iids = iid_list
+    for node in search_node_list:
+        print(f"Querying search node: {node}")
+        node_url_dict = await generate_urls_from_iids(remaining_iids, search_node=node)
+        node_url_dicts.append(node_url_dict)
+        remaining_iids = set(iid_list) - set(node_url_dict.keys())
+        print(f"{len(remaining_iids)} iids are remaining after queriying search node: {node}")
+        if len(remaining_iids) == 0:
+            print(f"Found urls for all iids. Stopping search.")
+            break
+    
+    # combine the results from all nodes
+    combined_node_url_dict = {}
+    for node_url_dict in node_url_dicts:
+        combined_node_url_dict = combined_node_url_dict | node_url_dict
+    return combined_node_url_dict
+        
+
+
 async def generate_urls_from_iids(
     iid_list: List[str],
+    search_node: Optional[str] = "https://esgf-node.llnl.gov/esg-search/search",
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
@@ -75,7 +92,11 @@ async def iid_request(
     urls = None
 
     print(f"{iid=}: Requesting data from search node {node}")
-    response_data = await _esgf_api_request(session, node, iid, params)
+    try: # TODO: Maybe retry and back of here too?
+        response_data = await _esgf_api_request(session, node, iid, params)
+    except aiohttp.ClientPayloadError as e:
+        print(f"{iid=}: Request failed with {e}")
+        return None
 
     print(f"{iid=}: Filtering response data")
     filtered_response_data = await sort_and_filter_response(response_data, session, iid)
@@ -137,9 +158,10 @@ def backoff_hdlr(details):
 @backoff.on_exception(
         backoff.expo,
         aiohttp.ClientError,
-        max_tries=5,
-        max_time=60, 
-        on_backoff=backoff_hdlr
+        max_tries=10,
+        max_time=60*5, # in seconds
+        on_backoff=backoff_hdlr,
+        jitter=backoff.full_jitter,
         )
 async def check_url(iid: str, url: str, session: aiohttp.ClientSession, timeout: int) -> int:
     async with session.head(url, timeout=timeout, raise_for_status=True) as resp:
