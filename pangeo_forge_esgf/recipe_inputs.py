@@ -45,7 +45,7 @@ async def generate_urls_from_iids(
     """
     # Lets limit the amount of connections to avoid being flagged
     connector = aiohttp.TCPConnector(
-        limit_per_host=50
+        limit_per_host=10
     )  # Not sure we need a timeout now, but this might be useful in the future
     # combined with a retry.
     # timeout = aiohttp.ClientTimeout(total=40)
