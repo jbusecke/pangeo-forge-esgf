@@ -15,7 +15,12 @@ preferred_data_nodes = [
     "esgdata.gfdl.noaa.gov",
 ]
 
-async def generate_urls_from_iids_multi_nodes(iid_list: List[str], search_node_list: List[str]=None) -> Dict[str, Union[List[str], Dict[str, str]]]:
+async def generate_urls_from_iids_multi_nodes(
+        iid_list: List[str],
+        search_node_list: List[str]=None,
+        connection_limit_per_host: Optional[int] = 10,
+        coroutines_limit: Optional[int] = 50,
+        ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """Execute search over multiple search nodes and return the first successful result for each iid"""
     if search_node_list is None:
         search_node_list = [
@@ -28,18 +33,32 @@ async def generate_urls_from_iids_multi_nodes(iid_list: List[str], search_node_l
     remaining_iids = iid_list
     for node in search_node_list:
         print(f"Querying search node: {node}")
-        node_url_dict = await generate_urls_from_iids(remaining_iids, search_node=node)
+        node_url_dict = await generate_urls_from_iids(
+            remaining_iids,
+            search_node=node,
+            connection_limit_per_host=connection_limit_per_host,
+            coroutines_limit=coroutines_limit,
+            )
         node_url_dicts.append(node_url_dict)
         remaining_iids = set(iid_list) - set(node_url_dict.keys())
-        print(f"{len(remaining_iids)} iids are remaining after queriying search node: {node}")
+        print(
+            f"{len(remaining_iids)} iids are remaining after "
+              f"queriying search node: {node}"
+            )
         if len(remaining_iids) == 0:
-            print(f"Found urls for all iids. Stopping search.")
+            print("Found urls for all iids. Stopping search.")
             break
     
     # combine the results from all nodes
     combined_node_url_dict = {}
     for node_url_dict in node_url_dicts:
         combined_node_url_dict = combined_node_url_dict | node_url_dict
+    
+    print(
+        "Failed to create recipe inputs for: \n"
+        + "\n".join(sorted(remaining_iids))
+    )
+    print(f"Of {len(iid_list)} iids resolved urls for {len(combined_node_url_dict.keys())}")
     return combined_node_url_dict
         
 
@@ -47,6 +66,8 @@ async def generate_urls_from_iids_multi_nodes(iid_list: List[str], search_node_l
 async def generate_urls_from_iids(
     iid_list: List[str],
     search_node: Optional[str] = "https://esgf-node.llnl.gov/esg-search/search",
+    connection_limit_per_host: Optional[int] = 10,
+    coroutines_limit: Optional[int] = 50,
 ) -> Dict[str, Union[List[str], Dict[str, str]]]:
     """_summary_
 
@@ -62,15 +83,16 @@ async def generate_urls_from_iids(
     """
     # Lets limit the amount of connections to avoid being flagged
     connector = aiohttp.TCPConnector(
-        limit_per_host=10
+        limit_per_host=connection_limit_per_host
     )  # Not sure we need a timeout now, but this might be useful in the future
     # combined with a retry.
     # timeout = aiohttp.ClientTimeout(total=40)
     # timeout=timeout, 
     async with aiohttp.ClientSession(connector=connector) as session:
         tasks = []
+        semaphore = asyncio.BoundedSemaphore(coroutines_limit) #https://quentin.pradet.me/blog/how-do-you-limit-memory-usage-with-asyncio.html
         for iid in iid_list:
-            tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node)))
+            tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node, semaphore)))
 
         raw_urls = await asyncio.gather(*tasks)
         recipe_inputs = {
@@ -83,33 +105,39 @@ async def generate_urls_from_iids(
             "Failed to create recipe inputs for: \n"
             + "\n".join(sorted(list(set(iid_list) - set(recipe_inputs.keys()))))
         )
+        print(f"Of {len(iid_list)} iids was able to resolve urls for {len(recipe_inputs.keys())}")
         return recipe_inputs
 
 
 async def iid_request(
-    session: aiohttp.ClientSession, iid: str, node: List[str], params: Dict = {}
+    session: aiohttp.ClientSession,
+    iid: str,
+    node: List[str],
+    semaphore: asyncio.BoundedSemaphore,
+    params: Dict = {},
 ):
     urls = None
 
-    print(f"{iid=}: Requesting data from search node {node}")
-    try: # TODO: Maybe retry and back of here too?
-        response_data = await _esgf_api_request(session, node, iid, params)
-    except aiohttp.ClientPayloadError as e:
-        print(f"{iid=}: Request failed with {e}")
-        return None
+    async with semaphore:
+        print(f"{iid=}: Requesting data from search node {node}")
+        try: # TODO: Maybe retry and back of here too?
+            response_data = await _esgf_api_request(session, node, iid, params)
+        except Exception as e:
+            print(f"{iid=}: Request failed with {e}")
+            return None
 
-    print(f"{iid=}: Filtering response data")
-    filtered_response_data = await sort_and_filter_response(response_data, session, iid)
+        print(f"{iid=}: Filtering response data")
+        filtered_response_data = await sort_and_filter_response(response_data, session, iid)
 
-    if len(filtered_response_data) == 0:
-        print(f"{iid=}: Not able to find responsive data node for all files. Maybe retry?")
-    else: 
-        print(f"{iid=}: Getting urls")
-        urls = [r["url"] for r in filtered_response_data]
-        print(f"{iid=}: DEBUG: WHAT ELSE is in a response? {filtered_response_data[0]}")
-        print(f"{iid=}: Found {len(urls)} urls {urls=}")
+        if len(filtered_response_data) == 0:
+            print(f"{iid=}: Not able to find responsive data node for all files. Maybe retry?")
+        else: 
+            print(f"{iid=}: Getting urls")
+            urls = [r["url"] for r in filtered_response_data]
+            print(f"{iid=}: DEBUG: WHAT ELSE is in a response? {filtered_response_data[0]}")
+            print(f"{iid=}: Found {len(urls)} urls {urls=}")
 
-    return urls
+        return urls
 
 
 async def _esgf_api_request(
@@ -158,8 +186,8 @@ def backoff_hdlr(details):
 @backoff.on_exception(
         backoff.expo,
         aiohttp.ClientError,
-        max_tries=10,
-        max_time=60*5, # in seconds
+        max_tries=5,
+        max_time=60*2, # in seconds
         on_backoff=backoff_hdlr,
         jitter=backoff.full_jitter,
         )
@@ -247,7 +275,7 @@ async def choose_data_nodes_for_file(
                 valid_responses.append(r)
                 break
         except Exception as e:
-            print(f"{iid=}: {data_node=} {url=} failed with {e}")
+            print(f"{iid=}: in `choose_data_nodes_for_file`: {data_node=} {url=} failed with {e}")
     
     if len(valid_responses) > 1:
         raise ValueError(f"{iid=}: More than one valid response ({valid_responses}) found for {filename=}. This should not happen.")
