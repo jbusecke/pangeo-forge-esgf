@@ -236,10 +236,12 @@ async def get_urls_from_esgf(
 ):
     if search_nodes is None:
         search_nodes = [
-            "https://esgf-node.llnl.gov/esg-search/search",
-            "https://esgf-data.dkrz.de/esg-search/search",
-            "https://esgf-node.ipsl.upmc.fr/esg-search/search",
-            "https://esgf-index1.ceda.ac.uk/esg-search/search", #TODO: reactivate
+            "http://esgf-node.llnl.gov/esg-search/search",
+            "http://esgf-data.dkrz.de/esg-search/search",
+            "http://esgf-node.ipsl.upmc.fr/esg-search/search",
+            "http://esgf-index1.ceda.ac.uk/esg-search/search",
+            "http://esg-dn1.nsc.liu.se/esg-search/search",
+            "http://esgf.nci.org.au/esg-search/search",
         ]
     
     semaphore = asyncio.BoundedSemaphore(max_concurrency) #https://quentin.pradet.me/blog/how-do-you-limit-memory-usage-with-asyncio.html
