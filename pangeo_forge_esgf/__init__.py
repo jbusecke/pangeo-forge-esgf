@@ -1,1 +1,1 @@
-from .recipe_inputs import generate_urls_from_iids, generate_urls_from_iids_multi_nodes
+from .recipe_inputs import get_urls_from_esgf

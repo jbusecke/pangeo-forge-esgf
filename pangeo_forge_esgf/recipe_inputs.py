@@ -1,347 +1,310 @@
-import asyncio
-from typing import Dict, List, Union, Optional
-
 import aiohttp
-import backoff
+import asyncio
 
 from .utils import facets_from_iid
+from typing import Dict, List, Tuple, Any, Optional
+# import backoff #might still be using the backoff stuff later
+from tqdm.asyncio import tqdm
 
-# Data nodes in preferred order (from naomis code here: https://github.com/naomi-henderson/cmip6collect2/blob/main/myconfig.py)
-# restrictign this to us nodes for performance reasons
-preferred_data_nodes = [
-    "esgf-data1.llnl.gov",
-    "esgf-data2.llnl.gov",
-    "aims3.llnl.gov",
-    "esgdata.gfdl.noaa.gov",
-]
+## async steps
+# def backoff_hdlr(details):
+#     print ("Backing off {wait:0.1f} seconds after {tries} tries "
+#            "calling function {target} with args {args} and kwargs "
+#            "{kwargs}".format(**details))
 
-async def generate_urls_from_iids_multi_nodes(
-        iid_list: List[str],
-        search_node_list: List[str]=None,
-        connection_limit_per_host: Optional[int] = 10,
-        coroutines_limit: Optional[int] = 50,
-        ) -> Dict[str, Union[List[str], Dict[str, str]]]:
-    """Execute search over multiple search nodes and return the first successful result for each iid"""
-    if search_node_list is None:
-        search_node_list = [
-            "https://esgf-node.llnl.gov/esg-search/search",
-            "https://esgf-data.dkrz.de/esg-search/search",
-            "https://esgf-node.ipsl.upmc.fr/esg-search/search",
-            "https://esgf-index1.ceda.ac.uk/esg-search/search",
-        ]
-    node_url_dicts = []
-    remaining_iids = iid_list
-    for node in search_node_list:
-        print(f"Querying search node: {node}")
-        node_url_dict = await generate_urls_from_iids(
-            remaining_iids,
-            search_node=node,
-            connection_limit_per_host=connection_limit_per_host,
-            coroutines_limit=coroutines_limit,
-            )
-        node_url_dicts.append(node_url_dict)
-        remaining_iids = set(iid_list) - set(node_url_dict.keys())
-        print(
-            f"{len(remaining_iids)} iids are remaining after "
-              f"queriying search node: {node}"
-            )
-        if len(remaining_iids) == 0:
-            print("Found urls for all iids. Stopping search.")
-            break
-    
-    # combine the results from all nodes
-    combined_node_url_dict = {}
-    for node_url_dict in node_url_dicts:
-        combined_node_url_dict = combined_node_url_dict | node_url_dict
-    
-    print(
-        "Failed to create recipe inputs for: \n"
-        + "\n".join(sorted(remaining_iids))
-    )
-    print(f"Of {len(iid_list)} iids resolved urls for {len(combined_node_url_dict.keys())}")
-    return combined_node_url_dict
-        
-
-
-async def generate_urls_from_iids(
-    iid_list: List[str],
-    search_node: Optional[str] = "https://esgf-node.llnl.gov/esg-search/search",
-    connection_limit_per_host: Optional[int] = 10,
-    coroutines_limit: Optional[int] = 50,
-) -> Dict[str, Union[List[str], Dict[str, str]]]:
-    """_summary_
-
-    Parameters
-    ----------
-    iid_list : _type_
-        _description_
-
-    Returns
-    -------
-    dict
-        _description_
-    """
-    # Lets limit the amount of connections to avoid being flagged
-    connector = aiohttp.TCPConnector(
-        limit_per_host=connection_limit_per_host
-    )  # Not sure we need a timeout now, but this might be useful in the future
-    # combined with a retry.
-    # timeout = aiohttp.ClientTimeout(total=40)
-    # timeout=timeout, 
-    async with aiohttp.ClientSession(connector=connector) as session:
-        tasks = []
-        semaphore = asyncio.BoundedSemaphore(coroutines_limit) #https://quentin.pradet.me/blog/how-do-you-limit-memory-usage-with-asyncio.html
-        for iid in iid_list:
-            tasks.append(asyncio.ensure_future(iid_request(session, iid, search_node, semaphore)))
-
-        raw_urls = await asyncio.gather(*tasks)
-        recipe_inputs = {
-            iid: urls
-            for iid, urls in zip(iid_list, raw_urls)
-            if urls is not None
-        }
-
-        print(
-            "Failed to create recipe inputs for: \n"
-            + "\n".join(sorted(list(set(iid_list) - set(recipe_inputs.keys()))))
-        )
-        print(f"Of {len(iid_list)} iids was able to resolve urls for {len(recipe_inputs.keys())}")
-        return recipe_inputs
-
-
-async def iid_request(
-    session: aiohttp.ClientSession,
-    iid: str,
-    node: List[str],
-    semaphore: asyncio.BoundedSemaphore,
-    params: Dict = {},
-):
-    urls = None
-
+# @backoff.on_predicate(
+#     backoff.constant,
+#     lambda x: x is None,
+#     on_backoff=backoff_hdlr,
+#     interval = 2, # in seconds
+#     max_tries = 2, 
+# )
+async def url_responsive(
+        session: aiohttp.ClientSession,
+        semaphore: asyncio.BoundedSemaphore,
+        url: str,  
+        timeout: int
+        ) -> bool:
     async with semaphore:
-        print(f"{iid=}: Requesting data from search node {node}")
-        try: # TODO: Maybe retry and back of here too?
-            response_data = await _esgf_api_request(session, node, iid, params)
+        try:
+            async with session.get(url, timeout=timeout) as resp:
+                if resp.status <= 300: # TODO: Is this a good way to check if the search node and data_url is responsive?
+                    return url
+        # except asyncio.TimeoutError:
+        #     print(f"Timeout for {url}")
+        #     return None # should trigger a backoff just like a failed request
+        # I guess one should not do this but there are a lot of other errors that can happen here.
         except Exception as e:
-            print(f"{iid=}: Request failed with {e}")
+            # print(f"Responsivness check for {url=} failed with: {e}")
             return None
 
-        print(f"{iid=}: Filtering response data")
-        filtered_response_data = await sort_and_filter_response(response_data, session, iid)
+# @backoff.on_exception(
+#     backoff.expo,
+#     (aiohttp.ClientError, asyncio.TimeoutError),
+#     max_time = 60, # in seconds
+#     base=5, # prevent the backoff from being too short in the first tries
+#     on_backoff=backoff_hdlr,
+#     jitter=backoff.full_jitter,
+# )
+# NOTE: I am going to use a predicate backoff as above here. This will more broadly back off on anything that returns a None here.
+# Might consider wrapping the pure request in a backoff.on_exception separately. Worried that the Timeouts here would accumulate.
+# but for now this should be fine.
+# @backoff.on_predicate(
+#     backoff.expo,
+#     lambda x: x is None,
+#     on_backoff=backoff_hdlr,
+#     max_time = 20, # in seconds
+#     base=4,
+# )
+# @backoff.on_predicate(
+#     backoff.constant,
+#     lambda x: x is None,
+#     on_backoff=backoff_hdlr,
+#     interval = 2, # in seconds
+#     max_tries = 3, 
+# )
+async def get_response_data(
+    session: aiohttp.ClientSession,
+    semaphore: asyncio.BoundedSemaphore,
+    url: str,
+    params=Dict[str, str],
+    timeout: int = 5
+    ) -> str:
+    async with semaphore:
+        try:
+            async with session.get(url, params=params, timeout=timeout, raise_for_status=True) as response:
+                response_data = await response.json(
+                    content_type="text/json"
+                )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
+            return response_data
+        # except asyncio.TimeoutError:
+        #     print(f"Timeout for {url}")
+        #     return None 
+        # except aiohttp.ClientError:
+        #     print(f"ClientError for {url}")
+        #     return None
+        except Exception as e:
+            # print(f"Getting response data for {url=} failed with: {e}")
+            return None # should trigger a backoff 
 
-        if len(filtered_response_data) == 0:
-            print(f"{iid=}: Not able to find responsive data node for all files. Maybe retry?")
-        else: 
-            print(f"{iid=}: Getting urls")
-            urls = [r["url"] for r in filtered_response_data]
-            print(f"{iid=}: DEBUG: WHAT ELSE is in a response? {filtered_response_data[0]}")
-            print(f"{iid=}: Found {len(urls)} urls {urls=}")
+## mid-level steps (not directly making requests)
+async def filter_responsive_urls(session: aiohttp.ClientSession, semaphore: asyncio.BoundedSemaphore, node_list: List[str]) -> List[str]:
+    """Filters a list of search nodes for those that are responsive."""
+    tasks = []
+    for url in node_list:
+        tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=20)))
 
-        return urls
+    unfiltered_urls = await asyncio.gather(*tasks)
+    return [url for url in unfiltered_urls if url is not None]
 
+async def get_first_responsive_url(
+        session: aiohttp.ClientSession,
+        semaphore: asyncio.BoundedSemaphore,
+        iid_url_tuple: Tuple[str, List[str]]) -> Tuple[str, str]:
+    """Filters a list of search nodes for those that are responsive."""
+    label, url_list = iid_url_tuple
+    try: 
+        tasks = []
+        for url in url_list:
+            tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=20)))
 
-async def _esgf_api_request(
-    session: aiohttp.ClientSession, node: str, iid: str, params: Dict[str, str]
-) -> Dict[str, str]:
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for p in pending:
+            p.cancel()    
+        return (label, done.pop().result())
+    except Exception as e:
+        # print(f"Error for {label=}: {e}")
+        return (label, None)
+
+async def filter_responsive_file_urls(
+    session: aiohttp.ClientSession,
+    semaphore: asyncio.BoundedSemaphore,
+    iid_url_tuple_list: List[Tuple[str, List[str]]]
+    ) -> List[Tuple[str, List[str]]]:
+    tasks = []
+    for iid_url_tuple in iid_url_tuple_list:
+        tasks.append(asyncio.ensure_future(get_first_responsive_url(session, semaphore, iid_url_tuple)))
+    # results = await asyncio.gather(*tasks)
+    results = await tqdm.gather(*tasks)
+    filtered_results = [r for r in results if r[1] is not None]
+    return filtered_results
+
+async def get_urls_for_iid(
+        session: aiohttp.ClientSession,
+        semaphore: asyncio.BoundedSemaphore,
+        iid: str,
+        node_url: str,
+        timeout: int = 20
+        ) -> str:
+    params = esgf_params_from_iid({}, iid)
+    # print(f"{iid=} Requesting from {node_url=}")
+    iid_response = await get_response_data(session, semaphore, node_url, params=params, timeout=timeout)
+    # check validity of response
+    if iid_response is None:
+        # print(f"{iid =}: Got no response  {node_url=}")
+        return None
+    elif iid_response['response']['numFound'] == 0:
+        # print(f"{iid =}: No files found on {node_url=}")
+        return None
+    else:
+        # return only the payload
+        return {iid: iid_response['response']["docs"]}
+    
+
+## utility processing functions (working on response output)
+def get_http(urls:list[str]) -> str:
+    """Filter for http urls"""
+    [url] = [url.split('|')[0] for url in urls if url.endswith('HTTPServer')]
+    return url
+
+def nest_dict_from_keyed_list(keyed_list:List[Tuple[str, Any]], sep:str = '|'):
+    """
+    Creates nested dict from a flat list of tuples (key, value) 
+    where key is a string with a separator indicating the levels of the dict.
+    This is not general(only works on two levels), but works for the specific case of the ESGF search API
+    """
+    new_dict = {}
+
+    for label, url in keyed_list:
+        # split label
+        iid, filename = label.split('|')
+        if iid not in new_dict.keys():
+            new_dict[iid] = {}
+        if filename not in new_dict[iid].keys():
+            new_dict[iid][filename] = url
+    return new_dict
+
+def url_result_processing(flat_urls_per_file:List[Tuple[str, str]], expected_files: Dict[str, int]):
+    filtered_dict = nest_dict_from_keyed_list(flat_urls_per_file)
+
+    # now check which files are missing per iid
+    files_found_per_iid = {}
+    for iid in expected_files.keys():
+        required_files = len(expected_files[iid])
+        if iid in filtered_dict.keys():
+            found_files = len(filtered_dict[iid].keys())
+        else:
+            found_files = 0
+        files_found_per_iid[iid] = (found_files, required_files)
+
+    # iid_results_combined is the ground truth about which files should be present
+    # create final dict with urls if all files are found
+    url_dict = {}
+    for iid, counts in files_found_per_iid.items():
+        if not counts[0] == counts[1]:
+            print(f"Skipping {iid} because not all files were found. Found {counts[0]} out of {counts[1]}")
+        else:
+            url_dict[iid] = list(set([url for filename, url in filtered_dict[iid].items()]))
+    return url_dict
+
+def flatten_iid_filename(iid, r):
+    return f"{iid}|{r['id'].split('|')[0]}"
+
+def esgf_params_from_iid(params: Dict[str, str], iid: str):
+    """Generates parameters for a GET request to the ESGF API based on the instance id."""
     # set default search parameters
     default_params = {
         "type": "File",
         "retracted": "false",
         "format": "application/solr+json",
         # "fields": "url,size,table_id,title,instance_id,replica,data_node",
-        "fields": "url,table_id,title,instance_id,replica,data_node",
+        "fields": "id, url,title",
         "latest": "true",
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
-
     params = default_params | params
     facets = facets_from_iid(iid)
     # if we use latest in the params we cannot use version
     # TODO: We might want to be specific about the version here and use latest in the 'parsing' logic only. Needs discussion.
     if params["latest"] == "true":
         if "version" in facets:
+            # TODO: Add print/logging here to clarify that we are ignoring the version and getting the latest
             del facets["version"]
 
     # combine params and facets
     params = params | facets
-
-    resp = await session.get(node, params=params)
-    status_code = resp.status
-    if not status_code == 200:
-        raise RuntimeError(f"{iid=}: Request failed with {status_code}")
-    resp_data = await resp.json(
-        content_type="text/json"
-    )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
-    resp_data = resp_data["response"]["docs"]
-    if len(resp_data) == 0:
-        raise ValueError(f"{iid=}: No Files were found")
-    return resp_data
-
-def backoff_hdlr(details):
-    print ("iid='{args[0]}': Backing off {wait:0.1f} seconds after {tries} tries "
-           "calling function {target} with args {args} and kwargs "
-           "{kwargs}".format(**details))
-
-@backoff.on_exception(
-        backoff.expo,
-        aiohttp.ClientError,
-        max_tries=5,
-        max_time=60*2, # in seconds
-        on_backoff=backoff_hdlr,
-        jitter=backoff.full_jitter,
-        )
-async def check_url(iid: str, url: str, session: aiohttp.ClientSession, timeout: int) -> int:
-    async with session.head(url, timeout=timeout, raise_for_status=True) as resp:
-        return resp.status
-
-async def sort_and_filter_response(
-    response: List[Dict[str, str]],
-    session: aiohttp.ClientSession,
-    iid: str
-) -> List[Dict[str, str]]:
-    """This function takes the input of the ESGF API query with possible duplicates of filenames.
-    It applies logic to choose between duplicate urls, and returns a list of dictionaries containing
-    only the filtered urls and sorted by chronological order based on dates in the filenames.
-    """
-    # modify url to our preferred format (for now only http)
-    http_only_response = [_pick_url_type(r) for r in response]
-
-    # ok with this we get a bunch of duplicate urls.
-    # What we want to do here is now:
-    # - Group by filename
-    # - for each group, check if non-replica is available, otherwise sort by url preference list
-
-    # TODO: Is there a way to know if I got all the filenames that exist?
-    filenames = list(set([r["title"] for r in http_only_response]))
-    filename_groups = {fn: [] for fn in filenames}
-
-    for r in http_only_response:
-        filename_groups[r["title"]].append(r)
-
-    # now filter the remaining
-    filtered_filename_groups = await pick_data_node(filename_groups, session, iid)
-
-    # convert the keys to dates to get urls in chronological order (needed later for the recipe)
-    filtered_filename_groups = {
-        k.replace(".nc", "").split("_")[-1].split("-")[-1]: v
-        for k, v in filtered_filename_groups.items()
-    }
-    return [
-        v
-        for _, v in sorted(
-            zip(filtered_filename_groups.keys(), filtered_filename_groups.values())
-        )
-    ]
+    return params
 
 
-def _pick_url_type(response):
-    # Chose preferred url format (for now only http).
-    # Modifies the `url` field to contain only a string instead of a list
-    modified_response = {k: v for k, v in response.items()}
-
-    # ! we could support other protocols here, but for now this seems to work fine
-    url = modified_response["url"]
-    if any(
-        ["HTTPServer" in u for u in url]
-    ):  # seems redundant, should I try/except here instead?
-        [http_url] = [u for u in url if "HTTPServer" in u]
-        modified_response["url"] = http_url.split("|")[0]
-        return modified_response
-    else:
-        raise ValueError("This recipe currently only supports HTTP links")
-
-async def choose_data_nodes_for_file(
-            iid: str,
-            filename: str,
-            response_list: List[Dict[str, str]],
-            session: aiohttp.ClientSession,
-    ) -> Dict[str, str]:
-    """For a given filename and list of responses 
-        (representing the same file on different data urls) and 
-        return the first response with a responsive url"""
-    print(f"{iid=} available data nodes for {filename}: {[r['data_node'] for r in response_list]}")
-    valid_responses = []
-    for r in response_list:
-        data_node = r['data_node']
-        # TODO: If this is successful I could implement a 'preferred data node' logic here as well. 
-        # First check the urls matching the preferred data node, then check the rest.
-        url = r['url']
-        try:
-            status = await check_url(iid, url, session, timeout=60) # maybe i coudl implement a backoff with increasing timeout here?
-            # TODO: It would be neat if we can do this checking concurrently and cancel once we get a response.
-            # This would maybe self-select the preferred data node in a way.
-            if status in [200, 206]:
-                valid_responses.append(r)
-                break
-        except Exception as e:
-            print(f"{iid=}: in `choose_data_nodes_for_file`: {data_node=} {url=} failed with {e}")
+async def get_urls_from_esgf(
+        iids: List[str],
+        limit_per_host: int = 10,
+        max_concurrency: int = 50,
+        max_concurrency_response: int = 500,
+        search_nodes: Optional[List[str]] = None
+):
+    if search_nodes is None:
+        search_nodes = [
+            "https://esgf-node.llnl.gov/esg-search/search",
+            "https://esgf-data.dkrz.de/esg-search/search",
+            "https://esgf-node.ipsl.upmc.fr/esg-search/search",
+            "https://esgf-index1.ceda.ac.uk/esg-search/search", #TODO: reactivate
+        ]
     
-    if len(valid_responses) > 1:
-        raise ValueError(f"{iid=}: More than one valid response ({valid_responses}) found for {filename=}. This should not happen.")
+    semaphore = asyncio.BoundedSemaphore(max_concurrency) #https://quentin.pradet.me/blog/how-do-you-limit-memory-usage-with-asyncio.html
+    semaphore_responsive = asyncio.BoundedSemaphore(max_concurrency_response)
+    connector = aiohttp.TCPConnector(
+        limit_per_host=limit_per_host
+    )
+    async with aiohttp.ClientSession(connector=connector) as session:
+        print(f"Checking responsiveness of {search_nodes=}")
+        responsive_search_nodes = await filter_responsive_urls(session, semaphore_responsive, search_nodes)
+        if len(responsive_search_nodes) == 0:
+            raise RuntimeError(f"None of the {search_nodes=} are responsive")
+        print(f"{responsive_search_nodes=}")
 
-    return filename, valid_responses
+        # We are now basically making requests to all search nodes fore each iid. This will return 
+        # results on a *file* basis. While this is rather redundant, I have seen cases where there are
+        # inconsistencies between search nodes, and I just want to make super sure that we get every single
+        # file/url combo that might be available. To speed this up, just trim the list of search nodes!
 
-async def pick_data_node(
-    response_groups: Dict[str, List[Dict[str, str]]],
-    session: aiohttp.ClientSession,
-    iid: str,
-    allow_mixed_nodes: bool = True,
-) -> Dict[str, Dict[str, str]]:
-    """Filters out non-responsive data nodes, and then selects the preferred data node from available ones"""
-    # # Response group example: 
-    # keys correspond to filenames for a single iid
-    # values are a list of dicts with attributes for each location of a specific file.
-    # {'psl_day_EC-Earth3_ssp585_r136i1p1f1_gr_20500101-20501231.nc':
-    # [{
-    #     'data_node': 'esg-dn1.nsc.liu.se',
-    #     'instance_id': 'CMIP6.ScenarioMIP.EC-Earth-Consortium.EC-Earth3.ssp585.r136i1p1f1.day.psl.gr.v20200412.psl_day_EC-Earth3_ssp585_r136i1p1f1_gr_20500101-20501231.nc',
-    #     'replica': False,
-    #     'table_id': ['day'],
-    #     'title': 'psl_day_EC-Earth3_ssp585_r136i1p1f1_gr_20500101-20501231.nc',
-    #     'url': 'http://esg-dn1.nsc.liu.se/thredds/fileServer/esg_dataroot9/cmip6data/CMIP6/ScenarioMIP/EC-Earth-Consortium/EC-Earth3/ssp585/r136i1p1f1/day/psl/gr/v20200412/psl_day_EC-Earth3_ssp585_r136i1p1f1_gr_20500101-20501231.nc',
-    #     'score': 1.0}
-    #     ],
-    #     ...
-    # }
+        print(f"Requesting urls for {iids=}")
+        tasks = []
+        for iid in iids:
+            for search_node in responsive_search_nodes:
+                tasks.append(asyncio.ensure_future(get_urls_for_iid(session, semaphore, iid, search_node, timeout=10)))
+        
+        # trying with a progressbar
+        iid_results = await tqdm.gather(*tasks)
+        # iid_results = await asyncio.gather(*tasks)
 
-    # TODO: We could make this logic easier by just taking the first available data node *per* file. 
-    # This might also lead to unforseen issues, so lets for now say we want all files to be 
-    # available on a single data node
-         
+        print("Processing responses")
 
-    print(f"{iid=}: Allowing mixed data nodes")
-    # Try the data nodes for each filename concurrently
-    tasks = []
-    for filename, response_list in response_groups.items(): #TODO: This could be done concurrently for each filename to save time
-        print(f"{iid=} Start evaluating valid data_nodes for {filename}")
-        tasks.append(
-            asyncio.ensure_future(
-            choose_data_nodes_for_file(
-            iid,
-            filename,
-            response_list,
-            session
-            )))
-    valid_responses = await asyncio.gather(*tasks)
-    
-    # parse gathered output into Dict[filename, single response]
-    single_response_dict = {
-        filename: responses[0] for filename, responses in valid_responses if len(responses)==1
-        }
-    
-    # Check that all files are available on the particular data_node
-    all_filenames = set(response_groups.keys())
-    found_filenames = set(single_response_dict.keys())
-    missing_filenames = list(
-        all_filenames - found_filenames
-        )
-    if len(missing_filenames) > 0:
-        print(f"{iid=}: Could only find {len(found_filenames)}/{len(all_filenames)} filenames. {missing_filenames=}")
-        return {}
-    else: 
-        print(f"{iid=}: Found a valid url for all files")
-        # diagnose how many datanodes we used
-        data_nodes_used = list(set([r['data_node'] for r in single_response_dict.values()]))
-        print(f"{iid=}: Data Nodes used: {data_nodes_used}")
-        return single_response_dict
+        # filter out None values
+        iid_results_filtered = [result for result in iid_results if result is not None]
+
+        print("Processing responses: Expected files per iid")
+        # split out the expected number of files per iid
+        expected_files_per_iid = {iid: set([r['id'].split("|")[0] for r in response]) for d in iid_results_filtered for iid, response in d.items()}
+
+        print("Processing responses: Check for missing iids")
+        # Status message about which iids were not even found on any of the search nodes.
+        remaining_iids = [iid for iid in iids if iid in [list(r.keys())[0] for r in iid_results_filtered]]
+        missing_iids = list(set(iids) - set(remaining_iids))
+        if len(missing_iids) > 0:
+            print(f"Not able to find results for the following {len(missing_iids)} iids: {missing_iids}")
+        
+        # convert flat list of results to dictionary(iid: dict(filename:[unique_urls]))
+        print("Processing responses: Flatten results")
+        keyed_results = [(flatten_iid_filename(iid, r), get_http(r['url'])) for r_dict in iid_results_filtered for iid,r_list in r_dict.items() for r in r_list]
+        
+
+        print("Processing responses: Group results")
+        # aggregate urls of results per iid and filename
+        group_dict = {}
+        for r in keyed_results:
+            if r[0] not in group_dict:
+                group_dict[r[0]] = []
+            group_dict[r[0]].append(r[1])
+            
+        iid_results_grouped = [(k,list(set(v))) for k,v in group_dict.items()]
+        
+        print("Find responsive urls")
+        filtered_urls_per_file = await filter_responsive_file_urls(session, semaphore_responsive, iid_results_grouped)
+
+    final_url_dict = url_result_processing(filtered_urls_per_file, expected_files_per_iid)
+
+    missing_iids = set(iids) - set(final_url_dict.keys())
+    print(f"Was not able to construct url list for the following ({len(missing_iids)}/{len(iids)}) iids:"+"\n"+"\n".join(missing_iids))
+    return final_url_dict
