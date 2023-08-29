@@ -194,7 +194,10 @@ def url_result_processing(flat_urls_per_file:List[Tuple[str, str]], expected_fil
         if not counts[0] == counts[1]:
             print(f"Skipping {iid} because not all files were found. Found {counts[0]} out of {counts[1]}")
         else:
-            url_dict[iid] = list(set([url for filename, url in filtered_dict[iid].items()]))
+            # sort urls by filname only
+            urls = [url for filename, url in filtered_dict[iid].items()]
+            urls_sorted = sorted(urls, key=lambda x: x.split('/')[-1])
+            url_dict[iid] = urls_sorted
     return url_dict
 
 def flatten_iid_filename(iid, r):
