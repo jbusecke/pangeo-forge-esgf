@@ -303,6 +303,7 @@ async def get_urls_from_esgf(
         
         # trying with a progressbar
         iid_results = await tqdm.gather(*tasks)
+        print(f"DEBUG:{iid_results =} ")
         
         # iid_results = await asyncio.gather(*tasks)
 
