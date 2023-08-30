@@ -179,7 +179,10 @@ def sort_urls_by_time(urls:List[str]) -> List[str]:
     sorted_urls = sorted(urls, key=lambda x: x.split('/')[-1])
     return sorted_urls
 
-def url_result_processing(flat_urls_per_file:List[Tuple[str, str]], expected_files: Dict[str, int]):
+def url_result_processing(
+    flat_urls_per_file:List[Tuple[str, str]],
+    expected_files: Dict[str, List[str]]
+    ):
     filtered_dict = nest_dict_from_keyed_list(flat_urls_per_file)
 
     # now check which files are missing per iid
@@ -196,8 +199,10 @@ def url_result_processing(flat_urls_per_file:List[Tuple[str, str]], expected_fil
     # create final dict with urls if all files are found
     url_dict = {}
     for iid, counts in files_found_per_iid.items():
-        if not counts[0] == counts[1]:
+        if counts[0] != counts[1]:
             print(f"Skipping {iid} because not all files were found. Found {counts[0]} out of {counts[1]}")
+            print(f'Found files: {list(filtered_dict[iid].keys())}')
+            print(f"Expected files: {list(expected_files[iid])}")
         else:
             # sort urls by filname only
             urls = [url for filename, url in filtered_dict[iid].items()]
