@@ -242,9 +242,7 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
         "type": "File",
         "retracted": "false",
         "format": "application/solr+json",
-        # "fields": "url,size,table_id,title,instance_id,replica,data_node",
-        "fields": "id, url,title, latest, version, instance_id, replica, data_node",
-        # "latest": "true", 
+        "fields": "id, url,title, latest, replica, data_node",
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
@@ -253,12 +251,6 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
     # `v` has to be removed from version
     if "version" in facets:
         facets["version"] = facets["version"].replace("v", "")
-    # # if we use latest in the params we cannot use version
-    # # TODO: We might want to be specific about the version here and use latest in the 'parsing' logic only. Needs discussion.
-    # if params["latest"] == "true":
-    #     if "version" in facets:
-    #         # TODO: Add print/logging here to clarify that we are ignoring the version and getting the latest
-    #         del facets["version"]
 
     # combine params and facets
     params = params | facets
