@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple, Any, Optional
 from tqdm.asyncio import tqdm
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.WARNING)
 ## async steps
 # def backoff_hdlr(details):
 #     logger.info("Backing off {wait:0.1f} seconds after {tries} tries "
