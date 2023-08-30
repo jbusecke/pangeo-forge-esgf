@@ -1,5 +1,5 @@
 import pytest
-from pangeo_forge_esgf.recipe_inputs import sort_urls_by_time
+from pangeo_forge_esgf.recipe_inputs import sort_urls_by_time, get_unique_filenames
 
 
 @pytest.mark.parametrize(
@@ -27,3 +27,31 @@ def test_sort_urls_by_time(urls_raw, expected_urls):
     urls_sorted = sort_urls_by_time(urls_raw)
     for i in range(len(expected_urls)):
         assert expected_urls[i] == urls_sorted[i]
+
+def test_get_unique_filenames():
+    filenames_w_data_node = [
+     'iid.stuff_20700101-20791231.nc|data.node.a',
+     'iid.stuff_20800101-20891231.nc|data.node.a',
+     'iid.stuff_20800101-20891231.nc|data.node.b',
+    ]
+    expected_filenames = [
+        'iid.stuff_20700101-20791231.nc',
+        'iid.stuff_20800101-20891231.nc',
+    ]
+    iid = 'some.iid'
+    iid_results = [{iid:[{'id':f"{filename}|data.node.stuff"} for filename in filenames_w_data_node]}]
+    filename_dict = get_unique_filenames(iid_results)
+    filenames = filename_dict[iid]
+    for i in range(len(expected_filenames)):
+        assert filenames[i] == expected_filenames[i]
+        
+def test_get_unique_filenames_raise_on_duplicates():
+    filenames_w_data_node = [
+     'iid.stuff_20700101-20791231.nc|data.node.a',
+     'iid.stuff_20800101-20891231.nc|data.node.a',
+     'iid.staff_20800101-20891231.nc|data.node.a',
+    ]
+    iid = 'some.iid'
+    iid_results = [{iid:[{'id':f"{filename}|data.node.stuff"} for filename in filenames_w_data_node]}]
+    with pytest.raises(ValueError):
+        get_unique_filenames(iid_results)

@@ -212,6 +212,25 @@ def url_result_processing(
 def flatten_iid_filename(iid, r):
     return f"{iid}|{r['id'].split('|')[0]}"
 
+def get_unique_filenames(iid_results: List[Dict[str, List[Dict[str, str]]]]) -> Dict[str, List[str]]:
+    """Extract unique filenames from results"""
+    filename_dict = {}
+    for result in iid_results:
+        for iid, res in result.items():
+            filenames = []
+            for r in res:
+                filename = r['id'].split("|")[0]
+                filenames.append(filename)
+            sorted_unique_filenames = sort_urls_by_time(list(set(filenames)))
+
+            # check for duplicate timesteps
+            unique_timesteps = set([f.split('_')[-1] for f in sorted_unique_filenames])
+            if len(unique_timesteps) != len(sorted_unique_filenames):
+                raise ValueError(f"Duplicate files found. This sometimes happens when the API returns multiple versions.")
+            
+            filename_dict[iid] = sorted_unique_filenames        
+    return filename_dict
+
 def esgf_params_from_iid(params: Dict[str, str], iid: str):
     """Generates parameters for a GET request to the ESGF API based on the instance id."""
     # set default search parameters
@@ -221,7 +240,7 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
         "format": "application/solr+json",
         # "fields": "url,size,table_id,title,instance_id,replica,data_node",
         "fields": "id, url,title, latest, version, instance_id, replica, data_node",
-        "latest": "true",
+        "latest": "true", 
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
@@ -291,8 +310,7 @@ async def get_urls_from_esgf(
 
         print("Processing responses: Expected files per iid")
         # split out the expected number of files per iid
-        print(f"DEBUG: {iid_results_filtered =}")
-        expected_files_per_iid = {iid: set([r['id'].split("|")[0] for r in response]) for d in iid_results_filtered for iid, response in d.items()}
+        expected_files_per_iid = get_unique_filenames(iid_results_filtered)
         print(f"DEBUG: {expected_files_per_iid =}")
 
         print("Processing responses: Check for missing iids")
