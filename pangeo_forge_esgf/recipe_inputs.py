@@ -174,6 +174,11 @@ def nest_dict_from_keyed_list(keyed_list:List[Tuple[str, Any]], sep:str = '|'):
             new_dict[iid][filename] = url
     return new_dict
 
+def sort_urls_by_time(urls:List[str]) -> List[str]:
+    """Sorts a list of urls by the time stamp in the filename."""
+    sorted_urls = sorted(urls, key=lambda x: x.split('/')[-1])
+    return sorted_urls
+
 def url_result_processing(flat_urls_per_file:List[Tuple[str, str]], expected_files: Dict[str, int]):
     filtered_dict = nest_dict_from_keyed_list(flat_urls_per_file)
 
@@ -196,8 +201,7 @@ def url_result_processing(flat_urls_per_file:List[Tuple[str, str]], expected_fil
         else:
             # sort urls by filname only
             urls = [url for filename, url in filtered_dict[iid].items()]
-            urls_sorted = sorted(urls, key=lambda x: x.split('/')[-1])
-            url_dict[iid] = urls_sorted
+            url_dict[iid] = sort_urls_by_time(urls)
     return url_dict
 
 def flatten_iid_filename(iid, r):
