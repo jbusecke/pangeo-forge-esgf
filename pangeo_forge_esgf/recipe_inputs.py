@@ -220,7 +220,7 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
         "retracted": "false",
         "format": "application/solr+json",
         # "fields": "url,size,table_id,title,instance_id,replica,data_node",
-        "fields": "id, url,title",
+        "fields": "id, url,title, latest, version, instance_id, replica, data_node",
         "latest": "true",
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
@@ -293,6 +293,7 @@ async def get_urls_from_esgf(
         # split out the expected number of files per iid
         print(f"DEBUG: {iid_results_filtered =}")
         expected_files_per_iid = {iid: set([r['id'].split("|")[0] for r in response]) for d in iid_results_filtered for iid, response in d.items()}
+        print(f"DEBUG: {expected_files_per_iid =}")
 
         print("Processing responses: Check for missing iids")
         # Status message about which iids were not even found on any of the search nodes.
