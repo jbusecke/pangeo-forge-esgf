@@ -243,7 +243,7 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
         "format": "application/solr+json",
         # "fields": "url,size,table_id,title,instance_id,replica,data_node",
         "fields": "id, url,title, latest, version, instance_id, replica, data_node",
-        "latest": "true", 
+        "latest": "false", 
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
