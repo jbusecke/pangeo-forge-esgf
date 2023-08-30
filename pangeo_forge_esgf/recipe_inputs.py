@@ -250,6 +250,9 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
     }
     params = default_params | params
     facets = facets_from_iid(iid)
+    # `v` has to be removed from version
+    if "version" in facets:
+        facets["version"] = facets["version"].replace("v", "")
     # # if we use latest in the params we cannot use version
     # # TODO: We might want to be specific about the version here and use latest in the 'parsing' logic only. Needs discussion.
     # if params["latest"] == "true":
