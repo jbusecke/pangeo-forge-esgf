@@ -345,5 +345,6 @@ async def get_urls_from_esgf(
     final_url_dict = url_result_processing(filtered_urls_per_file, expected_files_per_iid)
 
     missing_iids = set(iids) - set(final_url_dict.keys())
-    logger.critical(f"Was not able to construct url list for the following ({len(missing_iids)}/{len(iids)}) iids:"+"\n"+"\n".join(missing_iids))
+    if len(missing_iids) > 0:
+        logger.critical(f"Was not able to construct url list for the following ({len(missing_iids)}/{len(iids)}) iids:"+"\n"+"\n".join(missing_iids))
     return final_url_dict
