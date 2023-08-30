@@ -137,6 +137,7 @@ async def get_urls_for_iid(
         timeout: int = 20
         ) -> str:
     params = esgf_params_from_iid({}, iid)
+    print(f"{iid=} Request {params =}")
     # print(f"{iid=} Requesting from {node_url=}")
     iid_response = await get_response_data(session, semaphore, node_url, params=params, timeout=timeout)
     # check validity of response
