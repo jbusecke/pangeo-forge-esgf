@@ -281,6 +281,7 @@ async def get_urls_from_esgf(
         
         # trying with a progressbar
         iid_results = await tqdm.gather(*tasks)
+        
         # iid_results = await asyncio.gather(*tasks)
 
         print("Processing responses")
@@ -290,6 +291,7 @@ async def get_urls_from_esgf(
 
         print("Processing responses: Expected files per iid")
         # split out the expected number of files per iid
+        print(f"DEBUG: {iid_results_filtered =}")
         expected_files_per_iid = {iid: set([r['id'].split("|")[0] for r in response]) for d in iid_results_filtered for iid, response in d.items()}
 
         print("Processing responses: Check for missing iids")
