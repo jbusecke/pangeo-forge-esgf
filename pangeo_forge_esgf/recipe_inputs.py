@@ -192,7 +192,7 @@ def url_result_processing(
 
     # now check which files are missing per iid
     files_found_per_iid = {}
-    for iid in expected_files.keys():
+    for iid in filtered_dict.keys():
         required_files = len(expected_files[iid])
         if iid in filtered_dict.keys():
             found_files = len(filtered_dict[iid].keys())
