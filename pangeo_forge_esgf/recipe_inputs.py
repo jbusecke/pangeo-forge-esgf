@@ -295,7 +295,8 @@ async def get_urls_from_esgf(
         # inconsistencies between search nodes, and I just want to make super sure that we get every single
         # file/url combo that might be available. To speed this up, just trim the list of search nodes!
 
-        logger.info(f"Requesting urls for {iids=}")
+        logger.info("Requesting urls")
+        logger.debug(f"for {iids=}")
         tasks = []
         for iid in iids:
             for search_node in responsive_search_nodes:
