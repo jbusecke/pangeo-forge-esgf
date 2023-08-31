@@ -8,7 +8,6 @@ from typing import Dict, List, Tuple, Any, Optional
 from tqdm.asyncio import tqdm
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 ## async steps
 # def backoff_hdlr(details):
 #     logger.info("Backing off {wait:0.1f} seconds after {tries} tries "
@@ -186,6 +185,7 @@ def url_result_processing(
     flat_urls_per_file:List[Tuple[str, str]],
     expected_files: Dict[str, List[str]]
     ):
+    
     filtered_dict = nest_dict_from_keyed_list(flat_urls_per_file)
 
     # now check which files are missing per iid
