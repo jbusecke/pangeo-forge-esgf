@@ -141,7 +141,7 @@ async def get_urls_for_iid(
         timeout: int = 20
         ) -> str:
     params = esgf_params_from_iid({}, iid)
-    logger.info(f"{iid=} Requesting from {node_url=} {params =}")
+    logger.debug(f"{iid=} Requesting from {node_url=} {params =}")
     iid_response = await get_response_data(session, semaphore, node_url, params=params, timeout=timeout)
     # check validity of response
     if iid_response is None:
