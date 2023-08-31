@@ -35,11 +35,11 @@ async def url_responsive(
                 if resp.status <= 300: # TODO: Is this a good way to check if the search node and data_url is responsive?
                     return url
         # except asyncio.TimeoutError:
-        #     logger.info(f"Timeout for {url}")
+        #     logger.debug(f"Timeout for {url}")
         #     return None # should trigger a backoff just like a failed request
         # I guess one should not do this but there are a lot of other errors that can happen here.
         except Exception as e:
-            logger.info(f"Responsivness check for {url=} failed with: {e}")
+            logger.debug(f"Responsivness check for {url=} failed with: {e}")
             return None
 
 # @backoff.on_exception(
@@ -82,13 +82,13 @@ async def get_response_data(
                 )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
             return response_data
         # except asyncio.TimeoutError:
-        #     logger.info(f"Timeout for {url}")
+        #     logger.debug(f"Timeout for {url}")
         #     return None 
         # except aiohttp.ClientError:
-        #     logger.info(f"ClientError for {url}")
+        #     logger.debug(f"ClientError for {url}")
         #     return None
         except Exception as e:
-            # logger.info(f"Getting response data for {url=} failed with: {e}")
+            # logger.debug(f"Getting response data for {url=} failed with: {e}")
             return None # should trigger a backoff 
 
 ## mid-level steps (not directly making requests)
@@ -117,7 +117,7 @@ async def get_first_responsive_url(
             p.cancel()    
         return (label, done.pop().result())
     except Exception as e:
-        logger.warning(f"Error for {label=}: {e}")
+        logger.warn(f"Error for {label=}: {e}")
         return (label, None)
 
 async def filter_responsive_file_urls(
@@ -141,11 +141,11 @@ async def get_urls_for_iid(
         timeout: int = 20
         ) -> str:
     params = esgf_params_from_iid({}, iid)
-    logger.debug(f"{iid=} Requesting from {node_url=} {params =}")
+    logger.info(f"{iid=} Requesting from {node_url=} {params =}")
     iid_response = await get_response_data(session, semaphore, node_url, params=params, timeout=timeout)
     # check validity of response
     if iid_response is None:
-        logger.debug(f"{iid =}: Got no response  {node_url=}")
+        logger.info(f"{iid =}: Got no response  {node_url=}")
         return None
     elif iid_response['response']['numFound'] == 0:
         logger.debug(f"{iid =}: No files found on {node_url=}")
@@ -306,30 +306,30 @@ async def get_urls_from_esgf(
         logger.debug(f"{iid_results =} ")
         # iid_results = await asyncio.gather(*tasks)
 
-        logger.critical("Processing responses")
+        logger.info("Processing responses")
 
         # filter out None values
         iid_results_filtered = [result for result in iid_results if result is not None]
         logger.debug(f"{iid_results_filtered =} ")
 
-        logger.critical("Processing responses: Expected files per iid")
+        logger.info("Processing responses: Expected files per iid")
         # split out the expected number of files per iid
         expected_files_per_iid = get_unique_filenames(iid_results_filtered)
         logger.debug(f"{expected_files_per_iid =}")
 
-        logger.critical("Processing responses: Check for missing iids")
+        logger.info("Processing responses: Check for missing iids")
         # Status message about which iids were not even found on any of the search nodes.
         remaining_iids = [iid for iid in iids if iid in [list(r.keys())[0] for r in iid_results_filtered]]
         missing_iids = list(set(iids) - set(remaining_iids))
         if len(missing_iids) > 0:
-            logger.critical(f"Not able to find results for the following {len(missing_iids)} iids: {missing_iids}")
+            logger.warn(f"Not able to find results for the following {len(missing_iids)} iids: {missing_iids}")
         
         # convert flat list of results to dictionary(iid: dict(filename:[unique_urls]))
-        logger.critical("Processing responses: Flatten results")
+        logger.info("Processing responses: Flatten results")
         keyed_results = [(flatten_iid_filename(iid, r), get_http(r['url'])) for r_dict in iid_results_filtered for iid,r_list in r_dict.items() for r in r_list]
         logger.debug(f"{keyed_results =} ")
 
-        logger.critical("Processing responses: Group results")
+        logger.info("Processing responses: Group results")
         # aggregate urls of results per iid and filename
         group_dict = {}
         for r in keyed_results:
@@ -340,7 +340,7 @@ async def get_urls_from_esgf(
         iid_results_grouped = [(k,list(set(v))) for k,v in group_dict.items()]
         logger.debug(f"{iid_results_grouped =} ")
         
-        logger.critical("Find responsive urls")
+        logger.info("Find responsive urls")
         filtered_urls_per_file = await filter_responsive_file_urls(session, semaphore_responsive, iid_results_grouped)
         logger.debug(f"{filtered_urls_per_file =} ")
 
@@ -348,5 +348,5 @@ async def get_urls_from_esgf(
 
     missing_iids = set(iids) - set(final_url_dict.keys())
     if len(missing_iids) > 0:
-        logger.critical(f"Was not able to construct url list for the following ({len(missing_iids)}/{len(iids)}) iids:"+"\n"+"\n".join(missing_iids))
+        logger.warn(f"Was not able to construct url list for the following ({len(missing_iids)}/{len(iids)}) iids:"+"\n"+"\n".join(missing_iids))
     return final_url_dict
