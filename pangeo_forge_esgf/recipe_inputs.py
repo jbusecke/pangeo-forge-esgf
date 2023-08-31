@@ -205,9 +205,9 @@ def url_result_processing(
     url_dict = {}
     for iid, counts in files_found_per_iid.items():
         if counts[0] != counts[1]:
-            logger.info(f"Skipping {iid} because not all files were found. Found {counts[0]} out of {counts[1]}")
-            logger.info(f'Found files: {list(filtered_dict[iid].keys())}')
-            logger.info(f"Expected files: {list(expected_files[iid])}")
+            logger.debug(f"Skipping {iid} because not all files were found. Found {counts[0]} out of {counts[1]}")
+            logger.debug(f'Found files: {list(filtered_dict[iid].keys())}')
+            logger.debug(f"Expected files: {list(expected_files[iid])}")
         else:
             # sort urls by filname only
             urls = [url for filename, url in filtered_dict[iid].items()]
