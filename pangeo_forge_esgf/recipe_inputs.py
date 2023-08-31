@@ -8,6 +8,8 @@ from typing import Dict, List, Tuple, Any, Optional
 from tqdm.asyncio import tqdm
 
 logger = logging.getLogger(__name__)
+
+
 ## async steps
 # def backoff_hdlr(details):
 #     logger.info("Backing off {wait:0.1f} seconds after {tries} tries "
@@ -244,7 +246,7 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
         "type": "File",
         "retracted": "false",
         "format": "application/solr+json",
-        "fields": "id, url,title, latest, replica, data_node",
+        "fields": "id, url, title, latest, replica, data_node",
         "distrib": "true",
         "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
