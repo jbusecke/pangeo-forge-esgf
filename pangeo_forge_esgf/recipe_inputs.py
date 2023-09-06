@@ -133,7 +133,8 @@ async def filter_responsive_file_urls(
         *tasks,
         position=0,
         leave=True, #https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
-        miniters= len(tasks)/10, #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
+        miniters= int(len(tasks)/10), #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
+        maxinterval=float("inf")
         ) 
     filtered_results = [r for r in results if r[1] is not None]
     return filtered_results
@@ -312,7 +313,8 @@ async def get_urls_from_esgf(
             *tasks,
             position=0, 
             leave=True,# https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
-            miniters= len(tasks)/10 #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
+            miniters= int(len(tasks)/10), #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
+            maxinterval=float("inf"),
             ) 
         logger.debug(f"{iid_results =} ")
         # iid_results = await asyncio.gather(*tasks)
