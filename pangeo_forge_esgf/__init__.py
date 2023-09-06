@@ -1,4 +1,9 @@
 from .recipe_inputs import get_urls_from_esgf
+import logging
+import backoff #noqa #https://github.com/litl/backoff/issues/71
+
+logging.getLogger('backoff').setLevel(logging.FATAL) 
+# not sure if this is needed, but I want to avoid the many backoff messages
 
 def setup_logging(level: str = "INFO"):
     """A convenience function that sets up logging for developing and debugging recipes in Jupyter,

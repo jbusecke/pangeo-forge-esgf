@@ -21,7 +21,7 @@ def backoff_hdlr(details):
     backoff.constant,
     lambda x: x is None,
     on_backoff=backoff_hdlr,
-    interval = 2, # in seconds
+    interval = 5, # in seconds
     max_tries = 2, 
 )
 async def url_responsive(
@@ -129,8 +129,7 @@ async def filter_responsive_file_urls(
     tasks = []
     for iid_url_tuple in iid_url_tuple_list:
         tasks.append(asyncio.ensure_future(get_first_responsive_url(session, semaphore, iid_url_tuple)))
-    # results = await asyncio.gather(*tasks)
-    results = await tqdm.gather(*tasks)
+    results = await tqdm.gather(*tasks, position=0, leave=True) #https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
     filtered_results = [r for r in results if r[1] is not None]
     return filtered_results
 
@@ -304,7 +303,7 @@ async def get_urls_from_esgf(
                 tasks.append(asyncio.ensure_future(get_urls_for_iid(session, semaphore, iid, search_node, timeout=10)))
         
         # trying with a progressbar
-        iid_results = await tqdm.gather(*tasks)
+        iid_results = await tqdm.gather(*tasks, position=0, leave=True) # https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
         logger.debug(f"{iid_results =} ")
         # iid_results = await asyncio.gather(*tasks)
 
@@ -350,5 +349,6 @@ async def get_urls_from_esgf(
 
     missing_iids = set(iids) - set(final_url_dict.keys())
     if len(missing_iids) > 0:
-        logger.warn(f"Was not able to construct url list for the following ({len(missing_iids)}/{len(iids)}) iids:"+" \n "+" \n ".join(missing_iids))
+        logger.warn(f"Was not able to construct url list for ({len(missing_iids)}/{len(iids)}) iids")
+        logger.debug(f"Was not able to construct url list for the following iids:"+" /n "+" /n ".join(missing_iids))
     return final_url_dict
