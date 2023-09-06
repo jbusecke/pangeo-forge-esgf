@@ -129,7 +129,12 @@ async def filter_responsive_file_urls(
     tasks = []
     for iid_url_tuple in iid_url_tuple_list:
         tasks.append(asyncio.ensure_future(get_first_responsive_url(session, semaphore, iid_url_tuple)))
-    results = await tqdm.gather(*tasks, position=0, leave=True) #https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
+    results = await tqdm.gather(
+        *tasks,
+        position=0,
+        leave=True, #https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
+        miniters= len(tasks)/10, #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
+        ) 
     filtered_results = [r for r in results if r[1] is not None]
     return filtered_results
 
@@ -303,7 +308,12 @@ async def get_urls_from_esgf(
                 tasks.append(asyncio.ensure_future(get_urls_for_iid(session, semaphore, iid, search_node, timeout=10)))
         
         # trying with a progressbar
-        iid_results = await tqdm.gather(*tasks, position=0, leave=True) # https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
+        iid_results = await tqdm.gather(
+            *tasks,
+            position=0, 
+            leave=True,# https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
+            miniters= len(tasks)/10 #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
+            ) 
         logger.debug(f"{iid_results =} ")
         # iid_results = await asyncio.gather(*tasks)
 
