@@ -248,9 +248,9 @@ def filter_first_file_urls(iid_url_tuple_list: List[Tuple[str, List[str]]]):
     """
     filtered_list = []
     for iid, urls in iid_url_tuple_list:
-        if len(urls) > 1:
-            urls = urls[0]
-        filtered_list.append((iid, urls))
+        assert len(urls) > 0
+        url = urls[0]
+        filtered_list.append((iid, url))
     return filtered_list
 
 async def filter_responsive_file_urls(
