@@ -17,12 +17,19 @@ def backoff_hdlr(details):
            "calling function {target} with args {args} and kwargs "
            "{kwargs}".format(**details))
 
+# @backoff.on_predicate(
+#     backoff.constant,
+#     lambda x: x is None,
+#     on_backoff=backoff_hdlr,
+#     interval = 5, # in seconds
+#     max_tries = 2, 
+# )
 @backoff.on_predicate(
-    backoff.constant,
+    backoff.expo,
     lambda x: x is None,
     on_backoff=backoff_hdlr,
-    interval = 5, # in seconds
-    max_tries = 2, 
+    max_time = 120, # in seconds
+    base=4,
 )
 async def url_responsive(
         session: aiohttp.ClientSession,
@@ -54,13 +61,13 @@ async def url_responsive(
 # NOTE: I am going to use a predicate backoff as above here. This will more broadly back off on anything that returns a None here.
 # Might consider wrapping the pure request in a backoff.on_exception separately. Worried that the Timeouts here would accumulate.
 # but for now this should be fine.
-# @backoff.on_predicate(
-#     backoff.expo,
-#     lambda x: x is None,
-#     on_backoff=backoff_hdlr,
-#     max_time = 20, # in seconds
-#     base=4,
-# )
+@backoff.on_predicate(
+    backoff.expo,
+    lambda x: x is None,
+    on_backoff=backoff_hdlr,
+    max_time = 120, # in seconds
+    base=4,
+)
 # @backoff.on_predicate(
 #     backoff.constant,
 #     lambda x: x is None,
@@ -72,8 +79,8 @@ async def get_response_data(
     session: aiohttp.ClientSession,
     semaphore: asyncio.BoundedSemaphore,
     url: str,
-    params=Dict[str, str],
-    timeout: int = 5
+    params: Dict[str, str],
+    timeout: int
     ) -> str:
     async with semaphore:
         try:
@@ -89,7 +96,7 @@ async def get_response_data(
         #     logger.debug(f"ClientError for {url}")
         #     return None
         except Exception as e:
-            # logger.debug(f"Getting response data for {url=} failed with: {e}")
+            logger.debug(f"Getting response data for {url=} failed with: {e}")
             return None # should trigger a backoff 
 
 ## mid-level steps (not directly making requests)
@@ -97,7 +104,7 @@ async def filter_responsive_urls(session: aiohttp.ClientSession, semaphore: asyn
     """Filters a list of search nodes for those that are responsive."""
     tasks = []
     for url in node_list:
-        tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=20)))
+        tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=60)))
 
     unfiltered_urls = await asyncio.gather(*tasks)
     return [url for url in unfiltered_urls if url is not None]
@@ -111,7 +118,7 @@ async def get_first_responsive_url(
     try: 
         tasks = []
         for url in url_list:
-            tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=30)))
+            tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=60)))
 
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for p in pending:
@@ -144,7 +151,7 @@ async def get_urls_for_iid(
         semaphore: asyncio.BoundedSemaphore,
         iid: str,
         node_url: str,
-        timeout: int = 20
+        timeout: int,
         ) -> str:
     params = esgf_params_from_iid({}, iid)
     logger.debug(f"{iid=} Requesting from {node_url=} {params =}")
@@ -269,9 +276,9 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
 
 async def get_urls_from_esgf(
         iids: List[str],
-        limit_per_host: int = 10,
+        limit_per_host: int = 50,
         max_concurrency: int = 50,
-        max_concurrency_response: int = 500,
+        max_concurrency_response: int = 50,
         search_nodes: Optional[List[str]] = None
 ):
     if search_nodes is None:
@@ -306,7 +313,7 @@ async def get_urls_from_esgf(
         tasks = []
         for iid in iids:
             for search_node in responsive_search_nodes:
-                tasks.append(asyncio.ensure_future(get_urls_for_iid(session, semaphore, iid, search_node, timeout=10)))
+                tasks.append(asyncio.ensure_future(get_urls_for_iid(session, semaphore, iid, search_node, timeout=30)))
         
         # trying with a progressbar
         iid_results = await tqdm.gather(
