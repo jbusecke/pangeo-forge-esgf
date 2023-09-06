@@ -146,7 +146,7 @@ async def get_urls_for_iid(
     iid_response = await get_response_data(session, semaphore, node_url, params=params, timeout=timeout)
     # check validity of response
     if iid_response is None:
-        logger.info(f"{iid =}: Got no response  {node_url=}")
+        logger.debug(f"{iid =}: Got no response  {node_url=}")
         return None
     elif iid_response['response']['numFound'] == 0:
         logger.debug(f"{iid =}: No files found on {node_url=}")
@@ -350,5 +350,5 @@ async def get_urls_from_esgf(
 
     missing_iids = set(iids) - set(final_url_dict.keys())
     if len(missing_iids) > 0:
-        logger.warn(f"Was not able to construct url list for the following ({len(missing_iids)}/{len(iids)}) iids:"+"\n"+"\n".join(missing_iids))
+        logger.warn(f"Was not able to construct url list for the following ({len(missing_iids)}/{len(iids)}) iids:"+" \n "+" \n ".join(missing_iids))
     return final_url_dict
