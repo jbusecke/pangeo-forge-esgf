@@ -110,24 +110,6 @@ async def get_first_responsive_url(
         logger.warn(f"Error for {label=}: {e}")
         return (label, None)
 
-async def filter_responsive_file_urls(
-    session: aiohttp.ClientSession,
-    semaphore: asyncio.BoundedSemaphore,
-    iid_url_tuple_list: List[Tuple[str, List[str]]]
-    ) -> List[Tuple[str, List[str]]]:
-    tasks = []
-    for iid_url_tuple in iid_url_tuple_list:
-        tasks.append(asyncio.ensure_future(get_first_responsive_url(session, semaphore, iid_url_tuple)))
-    results = await tqdm.gather(
-        *tasks,
-        position=0,
-        leave=True, #https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
-        miniters= int(len(tasks)/10), #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
-        maxinterval=float("inf")
-        ) 
-    filtered_results = [r for r in results if r[1] is not None]
-    return filtered_results
-
 async def get_urls_for_iid(
         session: aiohttp.ClientSession,
         semaphore: asyncio.BoundedSemaphore,
@@ -260,13 +242,43 @@ preferred_data_nodes = ['a']
 def filter_preferred_file_urls(a):
     pass
 
+def filter_first_file_urls(iid_url_tuple_list: List[Tuple[str, List[str]]]):
+    """Just get the first url for each file
+    iid_url_tuple_list looks something like this: [('some.iid.you.like', [url1, url2])]
+    """
+    filtered_list = []
+    for iid, urls in iid_url_tuple_list:
+        if len(urls) > 1:
+            urls = urls[0]
+        filtered_list.append((iid, urls))
+    return filtered_list
+
+async def filter_responsive_file_urls(
+    session: aiohttp.ClientSession,
+    semaphore: asyncio.BoundedSemaphore,
+    iid_url_tuple_list: List[Tuple[str, List[str]]]
+    ) -> List[Tuple[str, List[str]]]:
+    tasks = []
+    for iid_url_tuple in iid_url_tuple_list:
+        tasks.append(asyncio.ensure_future(get_first_responsive_url(session, semaphore, iid_url_tuple)))
+    results = await tqdm.gather(
+        *tasks,
+        position=0,
+        leave=True, #https://stackoverflow.com/questions/41707229/why-is-tqdm-printing-to-a-newline-instead-of-updating-the-same-line
+        miniters= int(len(tasks)/10), #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
+        maxinterval=float("inf")
+        ) 
+    filtered_results = [r for r in results if r[1] is not None]
+    return filtered_results
+
+
 async def get_urls_from_esgf(
         iids: List[str],
         limit_per_host: int = 50,
         max_concurrency: int = 50,
         max_concurrency_response: int = 50,
         search_nodes: Optional[List[str]] = None,
-        choose_url: str = 'first_responsive',
+        choose_url: str = 'first',
         
 ):
     if search_nodes is None:
@@ -351,9 +363,10 @@ async def get_urls_from_esgf(
         if choose_url == 'preferred':
             logger.info("Find urls from preferred data nodes")
             filtered_urls_per_file = filter_preferred_file_urls(iid_results_grouped, preferred_data_nodes)
-
-
-        if choose_url == 'first_responsive':
+        elif choose_url == 'first':
+            logger.info("Find first urls")
+            filtered_urls_per_file = await filter_first_file_urls(iid_results_grouped)
+        elif choose_url == 'first_responsive':
             logger.info("Find responsive urls")
             filtered_urls_per_file = await filter_responsive_file_urls(session, semaphore_responsive, iid_results_grouped)
         logger.debug(f"{filtered_urls_per_file =} ")
