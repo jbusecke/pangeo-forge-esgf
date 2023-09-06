@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import logging
+import backoff
 
 from .utils import facets_from_iid
 from typing import Dict, List, Tuple, Any, Optional
@@ -11,18 +12,18 @@ logger = logging.getLogger(__name__)
 
 
 ## async steps
-# def backoff_hdlr(details):
-#     logger.info("Backing off {wait:0.1f} seconds after {tries} tries "
-#            "calling function {target} with args {args} and kwargs "
-#            "{kwargs}".format(**details))
+def backoff_hdlr(details):
+    logger.info("Backing off {wait:0.1f} seconds after {tries} tries "
+           "calling function {target} with args {args} and kwargs "
+           "{kwargs}".format(**details))
 
-# @backoff.on_predicate(
-#     backoff.constant,
-#     lambda x: x is None,
-#     on_backoff=backoff_hdlr,
-#     interval = 2, # in seconds
-#     max_tries = 2, 
-# )
+@backoff.on_predicate(
+    backoff.constant,
+    lambda x: x is None,
+    on_backoff=backoff_hdlr,
+    interval = 2, # in seconds
+    max_tries = 5, 
+)
 async def url_responsive(
         session: aiohttp.ClientSession,
         semaphore: asyncio.BoundedSemaphore,
