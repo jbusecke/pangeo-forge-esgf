@@ -65,7 +65,7 @@ async def url_responsive(
     backoff.expo,
     lambda x: x is None,
     on_backoff=backoff_hdlr,
-    max_time = 120, # in seconds
+    max_time = 30, # in seconds
     base=4,
 )
 # @backoff.on_predicate(
@@ -104,7 +104,7 @@ async def filter_responsive_urls(session: aiohttp.ClientSession, semaphore: asyn
     """Filters a list of search nodes for those that are responsive."""
     tasks = []
     for url in node_list:
-        tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=60)))
+        tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=10)))
 
     unfiltered_urls = await asyncio.gather(*tasks)
     return [url for url in unfiltered_urls if url is not None]
@@ -274,12 +274,18 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
     return params
 
 
+preferred_data_nodes = ['a']
+def filter_preferred_file_urls(a):
+    pass
+
 async def get_urls_from_esgf(
         iids: List[str],
         limit_per_host: int = 50,
         max_concurrency: int = 50,
         max_concurrency_response: int = 50,
-        search_nodes: Optional[List[str]] = None
+        search_nodes: Optional[List[str]] = None,
+        choose_url: str = 'first_responsive',
+        
 ):
     if search_nodes is None:
         search_nodes = [
@@ -323,9 +329,6 @@ async def get_urls_from_esgf(
             miniters= int(len(tasks)/10), #https://stackoverflow.com/questions/47995958/python-tqdm-package-how-to-configure-for-less-frequent-status-bar-updates
             maxinterval=float("inf"),
             ) 
-        logger.debug(f"{iid_results =} ")
-        # iid_results = await asyncio.gather(*tasks)
-
         logger.info("Processing responses")
 
         # filter out None values
@@ -361,9 +364,16 @@ async def get_urls_from_esgf(
             
         iid_results_grouped = [(k,list(set(v))) for k,v in group_dict.items()]
         logger.debug(f"{iid_results_grouped =} ")
-        
-        logger.info("Find responsive urls")
-        filtered_urls_per_file = await filter_responsive_file_urls(session, semaphore_responsive, iid_results_grouped)
+
+        logger.info("Choosing one url per file")
+        if choose_url == 'preferred':
+            logger.info("Find urls from preferred data nodes")
+            filtered_urls_per_file = filter_preferred_file_urls(iid_results_grouped, preferred_data_nodes)
+
+
+        if choose_url == 'first_responsive':
+            logger.info("Find responsive urls")
+            filtered_urls_per_file = await filter_responsive_file_urls(session, semaphore_responsive, iid_results_grouped)
         logger.debug(f"{filtered_urls_per_file =} ")
 
     final_url_dict = url_result_processing(filtered_urls_per_file, expected_files_per_iid)
