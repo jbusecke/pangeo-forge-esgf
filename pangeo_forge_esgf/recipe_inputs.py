@@ -365,7 +365,7 @@ async def get_urls_from_esgf(
             filtered_urls_per_file = filter_preferred_file_urls(iid_results_grouped, preferred_data_nodes)
         elif choose_url == 'first':
             logger.info("Find first urls")
-            filtered_urls_per_file = await filter_first_file_urls(iid_results_grouped)
+            filtered_urls_per_file = filter_first_file_urls(iid_results_grouped)
         elif choose_url == 'first_responsive':
             logger.info("Find responsive urls")
             filtered_urls_per_file = await filter_responsive_file_urls(session, semaphore_responsive, iid_results_grouped)
