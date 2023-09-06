@@ -325,6 +325,8 @@ async def get_urls_from_esgf(
         iid_results_filtered = [result for result in iid_results if result is not None]
         logger.debug(f"{iid_results_filtered =} ")
 
+        #TODO: Check if the versions submitted were latest. If not, suggest for the user to run the query again.
+
         logger.info("Processing responses: Expected files per iid")
         # split out the expected number of files per iid
         expected_files_per_iid = get_unique_filenames(iid_results_filtered)
@@ -362,5 +364,6 @@ async def get_urls_from_esgf(
     missing_iids = set(iids) - set(final_url_dict.keys())
     if len(missing_iids) > 0:
         logger.warn(f"Was not able to construct url list for ({len(missing_iids)}/{len(iids)}) iids")
-        logger.debug(f"Was not able to construct url list for the following iids:"+" /n "+" /n ".join(missing_iids))
+        logger.info("Was not able to construct url list for the following iids:")
+        logger.info(missing_iids)
     return final_url_dict
