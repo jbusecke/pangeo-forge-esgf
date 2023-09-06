@@ -128,3 +128,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 pangeo_forge_esgf/_version.py
+test_beam.ipynb
+test_DAMIP_feedstock_with_beam_refactor.ipynb
+test_esgf-pyclient.ipynb
+test_refactor.ipynb
+test_refactor.py
+test_script copy.py
+pangeo_forge_esgf/recipe_inputs_old.py

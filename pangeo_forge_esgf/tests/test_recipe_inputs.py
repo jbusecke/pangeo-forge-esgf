@@ -1,5 +1,5 @@
 import pytest
-from pangeo_forge_esgf.recipe_inputs import sort_urls_by_time, get_unique_filenames
+from pangeo_forge_esgf.recipe_inputs import sort_urls_by_time, get_unique_filenames, filter_first_file_urls
 
 
 @pytest.mark.parametrize(
@@ -55,3 +55,23 @@ def test_get_unique_filenames_raise_on_duplicates():
     iid_results = [{iid:[{'id':f"{filename}|data.node.stuff"} for filename in filenames_w_data_node]}]
     with pytest.raises(ValueError):
         get_unique_filenames(iid_results)
+
+def test_filter_first_file_urls():
+    unfiltered = [
+        ('some.iid.you.like|some.filename.pattern', ['url1', 'url2']),
+        ('some.iid.you.like|some.other_filename.pattern', ['urla', 'urlb']),
+        ('some.other_iid.you.like|some.other_filename.pattern', ['urlc']),
+        ]
+    expected = [
+        ('some.iid.you.like|some.filename.pattern', 'url1'),
+        ('some.iid.you.like|some.other_filename.pattern', 'urla'),
+        ('some.other_iid.you.like|some.other_filename.pattern', 'urlc'),
+        ]
+    filtered = filter_first_file_urls(unfiltered)
+    for i in range(len(expected)):
+        for ii in range(2):
+            assert filtered[i][ii] == expected[i][ii]
+
+def test_filter_preferred_file_urls():
+    pass
+

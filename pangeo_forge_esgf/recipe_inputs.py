@@ -244,7 +244,7 @@ def filter_preferred_file_urls(a):
 
 def filter_first_file_urls(iid_url_tuple_list: List[Tuple[str, List[str]]]):
     """Just get the first url for each file
-    iid_url_tuple_list looks something like this: [('some.iid.you.like', [url1, url2])]
+    iid_url_tuple_list looks something like this: [('some.iid.you.like|some.filename.pattern', [url1, url2])]
     """
     filtered_list = []
     for iid, urls in iid_url_tuple_list:
