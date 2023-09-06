@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 ## async steps
 def backoff_hdlr(details):
-    logger.info("Backing off {wait:0.1f} seconds after {tries} tries "
+    logger.debug("Backing off {wait:0.1f} seconds after {tries} tries "
            "calling function {target} with args {args} and kwargs "
            "{kwargs}".format(**details))
 
@@ -22,7 +22,7 @@ def backoff_hdlr(details):
     lambda x: x is None,
     on_backoff=backoff_hdlr,
     interval = 2, # in seconds
-    max_tries = 5, 
+    max_tries = 2, 
 )
 async def url_responsive(
         session: aiohttp.ClientSession,
@@ -111,7 +111,7 @@ async def get_first_responsive_url(
     try: 
         tasks = []
         for url in url_list:
-            tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=20)))
+            tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=30)))
 
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for p in pending:
