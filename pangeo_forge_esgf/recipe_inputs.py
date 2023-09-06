@@ -17,19 +17,12 @@ def backoff_hdlr(details):
            "calling function {target} with args {args} and kwargs "
            "{kwargs}".format(**details))
 
-# @backoff.on_predicate(
-#     backoff.constant,
-#     lambda x: x is None,
-#     on_backoff=backoff_hdlr,
-#     interval = 5, # in seconds
-#     max_tries = 2, 
-# )
 @backoff.on_predicate(
-    backoff.expo,
+    backoff.constant,
     lambda x: x is None,
     on_backoff=backoff_hdlr,
-    max_time = 120, # in seconds
-    base=4,
+    interval = 5, # in seconds
+    max_tries = 2, 
 )
 async def url_responsive(
         session: aiohttp.ClientSession,
@@ -42,10 +35,6 @@ async def url_responsive(
             async with session.get(url, timeout=timeout) as resp:
                 if resp.status <= 300: # TODO: Is this a good way to check if the search node and data_url is responsive?
                     return url
-        # except asyncio.TimeoutError:
-        #     logger.debug(f"Timeout for {url}")
-        #     return None # should trigger a backoff just like a failed request
-        # I guess one should not do this but there are a lot of other errors that can happen here.
         except Exception as e:
             logger.debug(f"Responsivness check for {url=} failed with: {e}")
             return None
@@ -68,13 +57,6 @@ async def url_responsive(
     max_time = 30, # in seconds
     base=4,
 )
-# @backoff.on_predicate(
-#     backoff.constant,
-#     lambda x: x is None,
-#     on_backoff=backoff_hdlr,
-#     interval = 2, # in seconds
-#     max_tries = 3, 
-# )
 async def get_response_data(
     session: aiohttp.ClientSession,
     semaphore: asyncio.BoundedSemaphore,
@@ -118,7 +100,7 @@ async def get_first_responsive_url(
     try: 
         tasks = []
         for url in url_list:
-            tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=60)))
+            tasks.append(asyncio.ensure_future(url_responsive(session, semaphore, url, timeout=30)))
 
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for p in pending:
@@ -319,7 +301,7 @@ async def get_urls_from_esgf(
         tasks = []
         for iid in iids:
             for search_node in responsive_search_nodes:
-                tasks.append(asyncio.ensure_future(get_urls_for_iid(session, semaphore, iid, search_node, timeout=30)))
+                tasks.append(asyncio.ensure_future(get_urls_for_iid(session, semaphore, iid, search_node, timeout=10)))
         
         # trying with a progressbar
         iid_results = await tqdm.gather(
