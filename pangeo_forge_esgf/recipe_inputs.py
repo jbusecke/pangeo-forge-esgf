@@ -239,10 +239,10 @@ def esgf_params_from_iid(params: Dict[str, str], iid: str):
 
 
 preferred_data_nodes = ['a']
-def filter_preferred_file_urls(a):
+def filter_urls_preferred_node(a):
     pass
 
-def filter_first_file_urls(iid_url_tuple_list: List[Tuple[str, List[str]]]):
+def filter_urls_first(iid_url_tuple_list: List[Tuple[str, List[str]]]):
     """Just get the first url for each file
     iid_url_tuple_list looks something like this: [('some.iid.you.like|some.filename.pattern', [url1, url2])]
     """
@@ -253,7 +253,7 @@ def filter_first_file_urls(iid_url_tuple_list: List[Tuple[str, List[str]]]):
         filtered_list.append((iid, url))
     return filtered_list
 
-async def filter_responsive_file_urls(
+async def filter_urls_first_responsive(
     session: aiohttp.ClientSession,
     semaphore: asyncio.BoundedSemaphore,
     iid_url_tuple_list: List[Tuple[str, List[str]]]
@@ -358,17 +358,16 @@ async def get_urls_from_esgf(
             
         iid_results_grouped = [(k,list(set(v))) for k,v in group_dict.items()]
         logger.debug(f"{iid_results_grouped =} ")
-
         logger.info("Choosing one url per file")
         if choose_url == 'preferred':
-            logger.info("Find urls from preferred data nodes")
-            filtered_urls_per_file = filter_preferred_file_urls(iid_results_grouped, preferred_data_nodes)
+            logger.info("Find preferred data node url for each file")
+            filtered_urls_per_file = filter_urls_preferred_node(iid_results_grouped, preferred_data_nodes)
         elif choose_url == 'first':
-            logger.info("Find first urls")
-            filtered_urls_per_file = filter_first_file_urls(iid_results_grouped)
+            logger.info("Find first url for each file")
+            filtered_urls_per_file = filter_urls_first(iid_results_grouped)
         elif choose_url == 'first_responsive':
-            logger.info("Find responsive urls")
-            filtered_urls_per_file = await filter_responsive_file_urls(session, semaphore_responsive, iid_results_grouped)
+            logger.info("Find first responsive url for each file")
+            filtered_urls_per_file = await filter_urls_first_responsive(session, semaphore_responsive, iid_results_grouped)
         logger.debug(f"{filtered_urls_per_file =} ")
 
     final_url_dict = url_result_processing(filtered_urls_per_file, expected_files_per_iid)

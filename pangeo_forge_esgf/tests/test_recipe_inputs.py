@@ -1,5 +1,5 @@
 import pytest
-from pangeo_forge_esgf.recipe_inputs import sort_urls_by_time, get_unique_filenames, filter_first_file_urls
+from pangeo_forge_esgf.recipe_inputs import sort_urls_by_time, get_unique_filenames, filter_urls_first, filter_urls_preferred_node
 
 
 @pytest.mark.parametrize(
@@ -60,18 +60,33 @@ def test_filter_first_file_urls():
     unfiltered = [
         ('some.iid.you.like|some.filename.pattern', ['url1', 'url2']),
         ('some.iid.you.like|some.other_filename.pattern', ['urla', 'urlb']),
-        ('some.other_iid.you.like|some.other_filename.pattern', ['urlc']),
+        ('some.other_iid.you.like|some.filename.pattern', ['urlc']),
+        ('some.other_iid.you.like|some.other_filename.pattern', ['urlb', 'urla']),
         ]
     expected = [
         ('some.iid.you.like|some.filename.pattern', 'url1'),
         ('some.iid.you.like|some.other_filename.pattern', 'urla'),
-        ('some.other_iid.you.like|some.other_filename.pattern', 'urlc'),
+        ('some.other_iid.you.like|some.filename.pattern', 'urlc'),
+         ('some.other_iid.you.like|some.other_filename.pattern', 'urlb'),
         ]
-    filtered = filter_first_file_urls(unfiltered)
+    filtered = filter_urls_first(unfiltered)
     for i in range(len(expected)):
         for ii in range(2):
             assert filtered[i][ii] == expected[i][ii]
 
-def test_filter_preferred_file_urls():
-    pass
+# def test_filter_urls_preferred_node():
+#     unfiltered = [
+#         ('some.iid.you.like|some.filename.pattern', ['urlb', 'url2']),
+#         ('some.iid.you.like|some.other_filename.pattern', ['url2', 'urla', 'urlb']),
+#         ('some.other_iid.you.like|some.filename.pattern', ['urlc']),
+#         ('some.other_iid.you.like|some.other_filename.pattern', ['urlb', 'urla']),
+#         ]
+#     expected = [
+#         ('some.iid.you.like|some.filename.pattern', 'url2'),
+#         ('some.iid.you.like|some.other_filename.pattern', 'urla'),
+#         ('some.other_iid.you.like|some.filename.pattern', 'urlc'),
+#          ('some.other_iid.you.like|some.other_filename.pattern', 'urla'),
+#         ]
+#     filtered = filter_urls_preferred_node(unfiltered, preferred_file=['urla', 'url2'])
+#     pass
 
