@@ -367,9 +367,12 @@ async def get_urls_from_esgf(
             logger.info("Find first url for each file")
             filtered_urls_per_file = filter_urls_first(iid_results_grouped)
         elif choose_url == 'first_responsive':
+            logger.warn("This method seems to be unreliable for getting many urls. \nIf you are getting less datasets than you expect, try 'first' instead.")
             logger.info("Find first responsive url for each file")
             filtered_urls_per_file = await filter_urls_first_responsive(session, semaphore_responsive, iid_results_grouped)
             logger.debug(f"{filtered_urls_per_file =} ")
+        else:
+            raise ValueError(f"Unknown value for {choose_url=}. Must be one of ['preferred', 'first', 'first_responsive']")
 
     final_url_dict = url_result_processing(filtered_urls_per_file, expected_files_per_iid)
 
