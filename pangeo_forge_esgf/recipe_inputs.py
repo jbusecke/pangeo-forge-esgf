@@ -360,6 +360,7 @@ async def get_urls_from_esgf(
         logger.debug(f"{iid_results_grouped =} ")
         logger.info("Choosing one url per file")
         if choose_url == 'preferred':
+            raise NotImplementedError("Preferred data node filtering not implemented yet")
             logger.info("Find preferred data node url for each file")
             filtered_urls_per_file = filter_urls_preferred_node(iid_results_grouped, preferred_data_nodes)
         elif choose_url == 'first':
