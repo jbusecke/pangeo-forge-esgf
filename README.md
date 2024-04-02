@@ -2,6 +2,17 @@
 
 Using queries to the ESGF API to generate urls and keyword arguments for receipe generation in pangeo-forge
 
+## Install
+You can install pangeo-forge-esgf via pip:
+```
+pip install pangeo-forge-esgf
+```
+
+If you want all the required dependencies for testing and development simply do:
+```
+pip install pangeo-forge-esgf[dev]
+```
+
 ## Parsing a list of instance ids using wildcards
 
 Pangeo forge recipes require the user to provide exact instance_id's for the datasets they want to be processed. Discovering these with the [web search](https://esgf-node.llnl.gov/search/cmip6/) can become cumbersome, especially when dealing with a large number of members/models etc.
