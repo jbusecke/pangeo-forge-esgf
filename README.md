@@ -24,9 +24,13 @@ For example if you want to find all the zonal (`uo`) and meridonal (`vo`) veloci
 ```python
 from pangeo_forge_esgf.parsing import parse_instance_ids
 parse_iids = [
-    "CMIP6.PMIP.*.*.lgm.*.*.uo.*.*",
-    "CMIP6.PMIP.*.*.lgm.*.*.vo.*.*",
+    "CMIP6.PMIP.*.*.lgm.*.*.[uo, vo].*.*",
 ]
+# Comma separated values in square brackets will be expanded and the above is equivalent to:
+# parse_iids = [
+#     "CMIP6.PMIP.*.*.lgm.*.*.[uo, vo].*.*", # this is equivalent to passing
+#     "CMIP6.PMIP.*.*.lgm.*.*.vo.*.*",
+# ]
 iids = []
 for piid in parse_iids:
     iids.extend(parse_instance_ids(piid))
