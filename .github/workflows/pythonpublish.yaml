@@ -25,7 +25,7 @@ jobs:
           python --version
       - name: Check current package version
         run: |
-          python setup.py --version
+          python -c "import pangeo_forge_esgf; print(pangeo_forge_esgf.__version__)
       - name: Build tarball and wheels
         run: |
           git clean -xdf

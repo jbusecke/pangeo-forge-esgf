@@ -2,6 +2,11 @@ from .recipe_inputs import get_urls_from_esgf
 import logging
 import backoff  # noqa #https://github.com/litl/backoff/issues/71
 
+try:
+    from ._version import __version__
+except ImportError:
+    __version__ = "unknown"
+
 logging.getLogger("backoff").setLevel(logging.FATAL)
 # not sure if this is needed, but I want to avoid the many backoff messages
 
