@@ -1,5 +1,4 @@
 import requests
-from typing import Optional
 
 from .utils import facets_from_iid
 
@@ -39,7 +38,6 @@ def parse_instance_ids(iid: str) -> list[str]:
             )
         facets[k] = v
     facets_filtered = {k: v for k, v in facets.items() if v != "*"}
-    
     # TODO: I should make the node url a keyword argument.
     # For now this works well enough
     url = "https://esgf-node.llnl.gov/esg-search/search"
