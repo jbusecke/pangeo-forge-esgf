@@ -22,7 +22,7 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: 🥡 Checkout code
+      - name: 🫙 Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # checkout tags (which is not done by default)
