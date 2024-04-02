@@ -29,6 +29,7 @@ dependencies = [
     "aiohttp",
     "tqdm",
     "backoff",
+    "requests",
 ]
 
 [project.optional-dependencies]
