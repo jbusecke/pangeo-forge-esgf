@@ -42,5 +42,4 @@ jobs:
       - name: 🏄‍♂️ Run Tests
         shell: bash -l {0}
         run: |
-          py.test pangeo_forge_esgf/tests -v 
-
+          py.test pangeo_forge_esgf/tests -v

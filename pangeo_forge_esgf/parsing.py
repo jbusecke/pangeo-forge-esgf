@@ -24,10 +24,7 @@ def instance_ids_from_request(json_dict):
     return uniqe_iids
 
 
-def parse_instance_ids(
-    iid: str,
-    search_node:Optional[str] = None
-) -> list[str]:
+def parse_instance_ids(iid: str, search_node: Optional[str] = None) -> list[str]:
     """Parse an instance id with wildcards"""
     facets = facets_from_iid(iid)
     # convert string to list if square brackets are found
@@ -46,7 +43,7 @@ def parse_instance_ids(
     if search_node is None:
         # search_node = "https://esgf-node.llnl.gov/esg-search/search"
         search_node = "https://esgf-data.dkrz.de/esg-search/search"
-        #FIXME: I got some really weird flakyness with the LLNL node. This is a dumb way to test this...
+        # FIXME: I got some really weird flakyness with the LLNL node. This is a dumb way to test this...
     # TODO: how do I iterate over this more efficiently?
     # Maybe we do not want to allow more than x files parsed?
     resp = request_from_facets(search_node, **facets_filtered)
