@@ -1,5 +1,5 @@
 import pytest
-from pangeo_forge_esgf.recipe_inputs import sort_urls_by_time, get_unique_filenames, filter_urls_first, filter_urls_preferred_node
+from pangeo_forge_esgf.recipe_inputs import sort_urls_by_time, get_unique_filenames, filter_urls_first
 
 
 @pytest.mark.parametrize(
@@ -73,20 +73,4 @@ def test_filter_first_file_urls():
     for i in range(len(expected)):
         for ii in range(2):
             assert filtered[i][ii] == expected[i][ii]
-
-# def test_filter_urls_preferred_node():
-#     unfiltered = [
-#         ('some.iid.you.like|some.filename.pattern', ['urlb', 'url2']),
-#         ('some.iid.you.like|some.other_filename.pattern', ['url2', 'urla', 'urlb']),
-#         ('some.other_iid.you.like|some.filename.pattern', ['urlc']),
-#         ('some.other_iid.you.like|some.other_filename.pattern', ['urlb', 'urla']),
-#         ]
-#     expected = [
-#         ('some.iid.you.like|some.filename.pattern', 'url2'),
-#         ('some.iid.you.like|some.other_filename.pattern', 'urla'),
-#         ('some.other_iid.you.like|some.filename.pattern', 'urlc'),
-#          ('some.other_iid.you.like|some.other_filename.pattern', 'urla'),
-#         ]
-#     filtered = filter_urls_preferred_node(unfiltered, preferred_file=['urla', 'url2'])
-#     pass
 
