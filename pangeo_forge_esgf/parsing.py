@@ -1,4 +1,5 @@
 import requests
+from typing import Optional
 
 from .utils import facets_from_iid
 
@@ -23,10 +24,7 @@ def instance_ids_from_request(json_dict):
     return uniqe_iids
 
 
-def parse_instance_ids(
-    iid: str,
-    search_node:Optional[str] = None
-) -> list[str]:
+def parse_instance_ids(iid: str) -> list[str]:
     """Parse an instance id with wildcards"""
     facets = facets_from_iid(iid)
     # convert string to list if square brackets are found
@@ -41,11 +39,14 @@ def parse_instance_ids(
             )
         facets[k] = v
     facets_filtered = {k: v for k, v in facets.items() if v != "*"}
-    if search_node is None:
-        search_node = "https://esgf-node.llnl.gov/esg-search/search"
+    
+    # TODO: I should make the node url a keyword argument.
+    # For now this works well enough
+    url = "https://esgf-node.llnl.gov/esg-search/search"
+    # url = "https://esgf-data.dkrz.de/esg-search/search"
     # TODO: how do I iterate over this more efficiently?
     # Maybe we do not want to allow more than x files parsed?
-    resp = request_from_facets(search_node, **facets_filtered)
+    resp = request_from_facets(url, **facets_filtered)
     if resp.status_code != 200:
         print(f"Request [{resp.url}] failed with {resp.status_code}")
         return resp
