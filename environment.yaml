@@ -1,7 +1,0 @@
-name: pangeo-forge-esgf-dev
-channels:
- - conda-forge
-dependencies:
-- pip
-- pip:
-  - -r requirements.txt
