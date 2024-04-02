@@ -40,6 +40,7 @@ test = [
 dev = [
     "ruff",
     "mypy",
+    "types-requests",
     "pre-commit",
     "pangeo-forge-esgf[test]"
 ]

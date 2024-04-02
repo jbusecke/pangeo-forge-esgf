@@ -1,11 +1,11 @@
 from pangeo_forge_esgf.parsing import parse_instance_ids
+import pytest
 
 
 def test_readme_example():
     # This is possibly flaky (due to the dependence on the ESGF API)
     parse_iids = [
-        "CMIP6.PMIP.*.*.lgm.*.*.uo.*.*",
-        "CMIP6.PMIP.*.*.lgm.*.*.vo.*.*",
+        "CMIP6.PMIP.*.*.lgm.*.*.[uo,vo].*.*",
     ]
     iids = []
     for piid in parse_iids:
@@ -29,3 +29,18 @@ def test_readme_example():
 
     for iid in expected_iids:
         assert iid in iids
+
+
+@pytest.mark.parametrize(
+    "facet_iid, expected",
+    [
+        ("a.b.c.d", ["a.b.c.d"]),
+        ("a.[b1, b2].c.[d1, d2]", ["a.b1.c.d1", "a.b1.c.d2", "a.b2.c.d1", "a.b2.c.d2"]),
+        ("a.[b1, b2].c.d", ["a.b1.c.d", "a.b2.c.d"]),
+        ("a.b.c.[d1, d2]", ["a.b.c.d1", "a.b.c.d2"]),
+    ],
+)
+def test_split_square_brackets(facet_iid, expected):
+    from pangeo_forge_esgf.parsing import split_square_brackets
+
+    assert split_square_brackets(facet_iid) == expected

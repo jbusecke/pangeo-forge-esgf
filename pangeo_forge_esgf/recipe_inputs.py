@@ -4,7 +4,7 @@ import logging
 import backoff
 
 from .utils import facets_from_iid
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Union
 
 # import backoff #might still be using the backoff stuff later
 from tqdm.asyncio import tqdm
@@ -33,7 +33,7 @@ async def url_responsive(
     semaphore: asyncio.BoundedSemaphore,
     url: str,
     timeout: int,
-) -> bool:
+) -> Union[None, str]:
     async with semaphore:
         try:
             async with session.get(url, timeout=timeout) as resp:
@@ -41,6 +41,11 @@ async def url_responsive(
                     resp.status <= 300
                 ):  # TODO: Is this a good way to check if the search node and data_url is responsive?
                     return url
+                else:
+                    resp.raise_for_status()
+                    return None  # mypy did not like the missing return, but this smells to me.
+                    # maybe I should overthink this design. In the end I want to backoff on None, but also get the actual exception back.
+                    # There might be a better way to achive this.
         except Exception as e:
             logger.debug(f"Responsivness check for {url=} failed with: {e}")
             return None
@@ -70,7 +75,7 @@ async def get_response_data(
     url: str,
     params: Dict[str, str],
     timeout: int,
-) -> str:
+) -> Union[None, str]:
     async with semaphore:
         try:
             async with session.get(
@@ -112,7 +117,7 @@ async def get_first_responsive_url(
     session: aiohttp.ClientSession,
     semaphore: asyncio.BoundedSemaphore,
     iid_url_tuple: Tuple[str, List[str]],
-) -> Tuple[str, str]:
+) -> Union[Tuple[str, str], Tuple[str, None]]:
     """Filters a list of search nodes for those that are responsive."""
     label, url_list = iid_url_tuple
     try:
@@ -139,7 +144,7 @@ async def get_urls_for_iid(
     iid: str,
     node_url: str,
     timeout: int,
-) -> str:
+) -> Union[None, Dict[str, List[Dict[str, str]]]]:
     params = esgf_params_from_iid({}, iid)
     logger.debug(f"{iid=} Requesting from {node_url=} {params =}")
     iid_response = await get_response_data(
@@ -164,13 +169,15 @@ def get_http(urls: list[str]) -> str:
     return url
 
 
-def nest_dict_from_keyed_list(keyed_list: List[Tuple[str, Any]], sep: str = "|"):
+def nest_dict_from_keyed_list(
+    keyed_list: List[Tuple[str, Any]], sep: str = "|"
+) -> Dict[str, Dict[str, str]]:
     """
     Creates nested dict from a flat list of tuples (key, value)
     where key is a string with a separator indicating the levels of the dict.
     This is not general(only works on two levels), but works for the specific case of the ESGF search API
     """
-    new_dict = {}
+    new_dict: Dict[str, Any] = {}
 
     for label, url in keyed_list:
         # split label
@@ -190,7 +197,7 @@ def sort_urls_by_time(urls: List[str]) -> List[str]:
 
 def url_result_processing(
     flat_urls_per_file: List[Tuple[str, str]], expected_files: Dict[str, List[str]]
-):
+) -> Dict[str, List[str]]:
     filtered_dict = nest_dict_from_keyed_list(flat_urls_per_file)
 
     # now check which files are missing per iid
@@ -249,16 +256,16 @@ def get_unique_filenames(
     return filename_dict
 
 
-def esgf_params_from_iid(params: Dict[str, str], iid: str):
+def esgf_params_from_iid(params: Dict[str, str], iid: str) -> Dict[str, str]:
     """Generates parameters for a GET request to the ESGF API based on the instance id."""
     # set default search parameters
-    default_params = {
+    default_params: Dict[str, str] = {
         "type": "File",
         "retracted": "false",
         "format": "application/solr+json",
         "fields": "id, url, title, latest, replica, data_node",
         "distrib": "true",
-        "limit": 500,  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
+        "limit": "500",  # This determines the number of urls/files that are returned. I dont expect this to be ever more than 500?
     }
     params = default_params | params
     facets = facets_from_iid(iid)
@@ -413,7 +420,7 @@ async def get_urls_from_esgf(
 
         logger.info("Processing responses: Group results")
         # aggregate urls of results per iid and filename
-        group_dict = {}
+        group_dict: Dict[str, List[str]] = {}
         for r in keyed_results:
             if r[0] not in group_dict:
                 group_dict[r[0]] = []
@@ -451,7 +458,7 @@ async def get_urls_from_esgf(
         filtered_urls_per_file, expected_files_per_iid
     )
 
-    missing_iids = set(iids) - set(final_url_dict.keys())
+    missing_iids = list(set(iids) - set(final_url_dict.keys()))
     if len(missing_iids) > 0:
         logger.warn(
             f"Was not able to construct url list for ({len(missing_iids)}/{len(iids)}) iids"
