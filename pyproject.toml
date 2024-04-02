@@ -40,6 +40,7 @@ test = [
 dev = [
     "ruff",
     "mypy",
+    "pre-commit",
     "pangeo-forge-esgf[test]"
 ]
 
@@ -80,6 +81,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "pangeo_forge_esgf/__init__.py",
 ]
 
 # Same as Black.
