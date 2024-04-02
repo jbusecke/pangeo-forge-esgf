@@ -27,53 +27,11 @@ jobs:
       - name: Check current package version
         run: |
           python -c "import pangeo_forge_esgf; print(pangeo_forge_esgf.__version__)"
-      - name: Build tarball and wheels
+      - name: Build and publish
+        env:
+          TWINE_USERNAME: "__token__"
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
-          git clean -xdf
-          git restore -SW .
-          python setup.py sdist bdist_wheel
-      - name: Check built artifacts
-        run: |
-          python -m twine check dist/*
-          pwd
-          if [ -f dist/xmip-0.0.0.tar.gz ]; then
-            echo "❌ INVALID VERSION NUMBER"
-            exit 1
-          else
-            echo "✅ Looks good"
-          fi
-      - uses: actions/upload-artifact@v3
-        with:
-          name: releases
-          path: dist
-  test-built-dist:
-    needs: build-artifacts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-python@v4
-        name: Install Python
-        with:
-          python-version: 3.8
-      - uses: actions/download-artifact@v3
-        with:
-          name: releases
-          path: dist
-      - name: List contents of built dist
-        run: |
-          ls -ltrh
-          ls -ltrh dist
-  upload-to-pypi:
-    if: "!github.event.release.prerelease"
-    needs: test-built-dist
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: releases
-          path: dist
-      - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.5.0
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_TOKEN }}
-          verbose: true
+          python -m build
+          twine check dist/*
+          twine upload dist/*
