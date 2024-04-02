@@ -82,4 +82,3 @@ iids = ['CMIP6.CMIP.CSIRO-ARCCSS.ACCESS-CM2.historical.r1i1p1f1.SImon.sifb.gn.v2
 url_dict = await get_urls_from_esgf(iids)
 url_dict['CMIP6.CMIP.CSIRO-ARCCSS.ACCESS-CM2.historical.r1i1p1f1.SImon.sifb.gn.v20200817']
 ```
-
