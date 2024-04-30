@@ -79,6 +79,7 @@ def parse_instance_ids(
     split_iids: List[str] = split_square_brackets(iid_string)
 
     parsed_iids: List[str] = []
+    no_result_iids: List[str] = []
     for iid in split_iids:
         for node in search_nodes:
             print(f"{node=}")
@@ -86,11 +87,18 @@ def parse_instance_ids(
             facets_filtered = {
                 k: v for k, v in facets.items() if v != "*"
             }  # leaving out the wildcards here will just request everything for that facet
-
-            resp = request_from_facets(node, **facets_filtered)
-            if resp.status_code != 200:
-                print(f"Request [{resp.url}] failed with {resp.status_code}")
-            else:
-                json_dict = resp.json()
-                parsed_iids.extend(instance_ids_from_request(json_dict))
+            try:
+                resp = request_from_facets(node, **facets_filtered)
+                if resp.status_code != 200:
+                    print(f"Request [{resp.url}] failed with {resp.status_code}")
+                else:
+                    json_dict = resp.json()
+                    iids_from_request = instance_ids_from_request(json_dict)
+                    if len(iids_from_request) == 0:
+                        no_result_iids.append(iid)
+                    else:
+                        parsed_iids.extend(iids_from_request)
+            except Exception as e:
+                print(f"Request for {iid=} to {node=} failed with {e}")
+    warnings.warn(f"No parsed results for {no_result_iids=}", UserWarning)
     return list(set(parsed_iids))

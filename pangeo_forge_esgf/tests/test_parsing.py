@@ -2,14 +2,30 @@ from pangeo_forge_esgf.parsing import parse_instance_ids
 import pytest
 
 
-def test_readme_example():
+def test_unparsable_iid():
+    parse_iids = [
+        "Some.random.*.*.crap.*.that.we.[cannot, will_not].parse",
+    ]
+    iids = []
+    for piid in parse_iids:
+        with pytest.warns(UserWarning):
+            iids.extend(parse_instance_ids(piid))
+    iids
+
+    assert len(iids) == 0
+
+
+@pytest.mark.parametrize(
+    "search_nodes", [None, ["https://esgf-node.llnl.gov/esg-search/search"]]
+)
+def test_readme_example(search_nodes):
     # This is possibly flaky (due to the dependence on the ESGF API)
     parse_iids = [
         "CMIP6.PMIP.*.*.lgm.*.*.[uo,vo].*.*",
     ]
     iids = []
     for piid in parse_iids:
-        iids.extend(parse_instance_ids(piid))
+        iids.extend(parse_instance_ids(piid, search_nodes))
     iids
 
     # I expect at least these iids to be parsed
@@ -29,6 +45,14 @@ def test_readme_example():
 
     for iid in expected_iids:
         assert iid in iids
+
+
+def test_deprecation_warning():
+    iid = ["CMIP6.PMIP.*.*.lgm.*.*.uo.*.*"]
+    with pytest.warns(DeprecationWarning):
+        parse_instance_ids(
+            iid[0], search_node="https://esgf-node.llnl.gov/esg-search/search"
+        )
 
 
 @pytest.mark.parametrize(
