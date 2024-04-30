@@ -1,5 +1,5 @@
 import pytest
-from from pangeo_forge_esgf.utils import facets_from_iid, CMIP6_naming_schema
+from pangeo_forge_esgf.utils import facets_from_iid, CMIP6_naming_schema
 
 @pytest.mark.parametrize('version_fix',[True, False])
 def test_facets_from_iid(version_fix):
