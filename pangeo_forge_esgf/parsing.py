@@ -81,6 +81,7 @@ def parse_instance_ids(
     parsed_iids: List[str] = []
     for iid in split_iids:
         for node in search_nodes:
+            print(f"{node=}")
             facets = facets_from_iid(iid)
             facets_filtered = {
                 k: v for k, v in facets.items() if v != "*"
