@@ -10,8 +10,8 @@ def test_facets_from_iid(fix_version):
     for k, v in facets.items():
         if k == "version":
             if fix_version:
-                assert k == "ersion"
+                assert v == "ersion"
             else:
-                assert k == v
+                assert k == "version"
         else:
             assert k == v
