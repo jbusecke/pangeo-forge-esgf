@@ -105,6 +105,6 @@ def parse_instance_ids(
     parsed_iids = list(set(parsed_iids))
     no_result_iids = list(set(no_result_iids) - set(parsed_iids))
 
-    if len(no_results_iids) > 0:
+    if len(no_result_iids) > 0:
         warnings.warn(f"No parsed results for {no_result_iids=}", UserWarning)
     return parsed_iids
