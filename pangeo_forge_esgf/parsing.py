@@ -47,7 +47,9 @@ def split_square_brackets(facet_string: str) -> List[str]:
     return split_iid_combinations
 
 
-def parse_instance_ids(iid_string: str, search_nodes: Optional[list[str]] = None) -> list[str]:
+def parse_instance_ids(
+    iid_string: str, search_nodes: Optional[list[str]] = None
+) -> list[str]:
     """Parse an instance id with wildcards"""
     # I am never sure where to get the full list of SOLR indicies, took this from intake-esgf: https://intake-esgf.readthedocs.io/en/latest/configure.html
     if search_nodes is None:
@@ -60,7 +62,7 @@ def parse_instance_ids(iid_string: str, search_nodes: Optional[list[str]] = None
             "https://esg-dn1.nsc.liu.se/esg-search/search",
             "https://esgf.ceda.ac.uk/esg-search/search",
         ]
-        
+
     # first resolve the square brackets
     split_iids: List[str] = split_square_brackets(iid_string)
 
@@ -71,7 +73,7 @@ def parse_instance_ids(iid_string: str, search_nodes: Optional[list[str]] = None
             facets_filtered = {
                 k: v for k, v in facets.items() if v != "*"
             }  # leaving out the wildcards here will just request everything for that facet
-    
+
             resp = request_from_facets(search_node, **facets_filtered)
             if resp.status_code != 200:
                 print(f"Request [{resp.url}] failed with {resp.status_code}")
