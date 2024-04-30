@@ -99,12 +99,12 @@ def parse_instance_ids(
                         parsed_iids.extend(iids_from_request)
             except Exception as e:
                 print(f"Request for {iid=} to {node=} failed with {e}")
-    # there is the possibility that an iid is parsed by one node, but not another. 
+    # there is the possibility that an iid is parsed by one node, but not another.
     # TODO: Print some more helpful info per node if needed?
     # For now lets just make sure that no_result_iids only shows cases that fail on *every* node
     parsed_iids = list(set(parsed_iids))
     no_result_iids = list(set(no_result_iids) - set(parsed_iids))
-    
+
     if len(no_results_iids) > 0:
         warnings.warn(f"No parsed results for {no_result_iids=}", UserWarning)
     return parsed_iids
