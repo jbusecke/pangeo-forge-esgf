@@ -99,6 +99,6 @@ def parse_instance_ids(
                         parsed_iids.extend(iids_from_request)
             except Exception as e:
                 print(f"Request for {iid=} to {node=} failed with {e}")
-    if len(no_results_iids)>0:
+    if len(no_results_iids) > 0:
         warnings.warn(f"No parsed results for {no_result_iids=}", UserWarning)
     return list(set(parsed_iids))
