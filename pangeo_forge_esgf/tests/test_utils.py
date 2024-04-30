@@ -13,4 +13,4 @@ def test_facets_from_iid(version_fix):
       else:
         assert k == v
     else:
-      assert k == v 
+      assert k == v
