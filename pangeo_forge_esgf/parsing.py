@@ -87,7 +87,7 @@ def parse_instance_ids(
                 k: v for k, v in facets.items() if v != "*"
             }  # leaving out the wildcards here will just request everything for that facet
 
-            resp = request_from_facets(search_node, **facets_filtered)
+            resp = request_from_facets(node, **facets_filtered)
             if resp.status_code != 200:
                 print(f"Request [{resp.url}] failed with {resp.status_code}")
             else:

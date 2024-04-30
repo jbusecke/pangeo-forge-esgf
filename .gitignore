@@ -135,3 +135,4 @@ test_refactor.ipynb
 test_refactor.py
 test_script copy.py
 pangeo_forge_esgf/recipe_inputs_old.py
+.vscode/settings.json
