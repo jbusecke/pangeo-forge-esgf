@@ -82,7 +82,6 @@ def parse_instance_ids(
     no_result_iids: List[str] = []
     for iid in split_iids:
         for node in search_nodes:
-            print(f"{node=}")
             facets = facets_from_iid(iid)
             facets_filtered = {
                 k: v for k, v in facets.items() if v != "*"
@@ -100,5 +99,12 @@ def parse_instance_ids(
                         parsed_iids.extend(iids_from_request)
             except Exception as e:
                 print(f"Request for {iid=} to {node=} failed with {e}")
-    warnings.warn(f"No parsed results for {no_result_iids=}", UserWarning)
-    return list(set(parsed_iids))
+    # there is the possibility that an iid is parsed by one node, but not another.
+    # TODO: Print some more helpful info per node if needed?
+    # For now lets just make sure that no_result_iids only shows cases that fail on *every* node
+    parsed_iids = list(set(parsed_iids))
+    no_result_iids = list(set(no_result_iids) - set(parsed_iids))
+
+    if len(no_result_iids) > 0:
+        warnings.warn(f"No parsed results for {no_result_iids=}", UserWarning)
+    return parsed_iids
