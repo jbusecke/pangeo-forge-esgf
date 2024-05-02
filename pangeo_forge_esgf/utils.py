@@ -1,6 +1,6 @@
 from typing import Dict
 
-CMIP6_naming_schema = "mip_era.activity_id.institution_id.source_id.experiment_id.variant_label.table_id.variable_id.grid_label.version"
+CMIP6_naming_schema = "mip_era.activity_id.institution_id.source_id.experiment_id.member_id.table_id.variable_id.grid_label.version"
 
 
 def facets_from_iid(iid: str, fix_version: bool = True) -> Dict[str, str]:
