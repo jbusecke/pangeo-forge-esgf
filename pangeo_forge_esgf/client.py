@@ -5,6 +5,10 @@ from dataclasses import dataclass
 from pangeo_forge_esgf.utils import facets_from_iid, split_square_brackets
 from collections import defaultdict
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # Python client for a SOLR ESGF search API
 @dataclass
@@ -105,7 +109,7 @@ class ESGFClient:
             valid_iid_list.extend(
                 self._get_unique_field_list("instance_id", type="dataset")
             )
-        return valid_iid_list
+        return list(set(valid_iid_list))
 
     def get_recipe_inputs_from_iid_list(
         self, instance_id_list: list[str]
@@ -126,12 +130,16 @@ class ESGFClient:
             self._search_datasets(**facets)
             dataset_ids_single = self._get_unique_field_list("id", type="dataset")
             dataset_ids.extend(dataset_ids_single)
-        print(f"Searching files for {dataset_ids=}")
+        logger.debug(f"Searching files for {dataset_ids=}")
         self._search_files_from_dataset_ids(dataset_ids)
-        print(f"Extracting fields {fields=}")
+        logger.debug(f"Extracting fields {fields=}")
         response = self._get_response_fields(fields, type="file")
         formatted_response = self._format_file_response_for_recipe(response)
-        print(f"{formatted_response=}")
+        iids_missed = set(dataset_ids) - set(formatted_response.keys())
+        logger.info(
+            f"Could not find input for {len(iids_missed)} datasets: {iids_missed}"
+        )
+        logger.debug(f"{formatted_response=}")
         return self._prune_formatted_response(formatted_response)
 
     def _format_file_response_for_recipe(
@@ -170,11 +178,12 @@ class ESGFClient:
                 filenames[instance_id].extend(file_dict.keys())
         filenames = {i: list(set(v)) for i, v in filenames.items()}
 
-        # find all data_node names and print
+        # find all data_node names
         data_nodes: list[str] = []
         for instance_id, data_node_dict in formatted_response.items():
             data_nodes.extend(data_node_dict.keys())
         data_nodes = list(set(data_nodes))
+        logger.debug(f"JUST FOR DEVELOPMENT: {data_nodes=}")
 
         def get_http_url(urls: list[str]) -> Union[str, None]:
             for url in urls:
@@ -182,6 +191,10 @@ class ESGFClient:
                 if protocol == "HTTPServer":
                     return url
             return None
+
+        def log_missing_iids(before: dict[str, Any], after: dict[str, Any], message):
+            iids_lost = set(before.keys() - set(after.keys()))
+            logger.info(f"{message} {len(iids_lost)} datasets: {iids_lost}")
 
         # create a new nested dict that only contains a single http url
         single_http_url_response: dict[str, dict[str, dict[str, Any]]] = defaultdict(
@@ -200,6 +213,11 @@ class ESGFClient:
                         single_http_url_response[instance_id][data_node][f] = (
                             insert_dict
                         )
+        log_missing_iids(
+            formatted_response,
+            single_http_url_response,
+            "Could not find any http url for",
+        )
 
         pruned_data_nodes_response: dict[str, dict[str, dict[str, Any]]] = defaultdict(
             lambda: defaultdict(dict)
@@ -209,6 +227,12 @@ class ESGFClient:
             for data_node, file_dict in data_node_dict.items():
                 if all([f in file_dict.keys() for f in filenames[instance_id]]):
                     pruned_data_nodes_response[instance_id][data_node] = file_dict
+
+        log_missing_iids(
+            single_http_url_response,
+            pruned_data_nodes_response,
+            "Could not find a single data node with all files for",
+        )
 
         # list of preferred data nodes
         preferred_data_nodes = [
@@ -230,6 +254,12 @@ class ESGFClient:
                 if len(data_node_dict) > 0:
                     data_node = list(data_node_dict.keys())[0]
             single_data_node_response[instance_id] = data_node_dict[data_node]
+
+        log_missing_iids(
+            pruned_data_nodes_response,
+            single_data_node_response,
+            "Lost input during data node selection for",
+        )
 
         return single_data_node_response
 
