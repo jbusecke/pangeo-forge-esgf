@@ -1,6 +1,10 @@
 import pytest
 import requests
-from pangeo_forge_esgf.utils import facets_from_iid, CMIP6_naming_schema
+from pangeo_forge_esgf.utils import (
+    facets_from_iid,
+    CMIP6_naming_schema,
+    split_square_brackets,
+)
 
 
 def get_official_drs_naming_scheme():
@@ -46,3 +50,16 @@ def test_facets_from_iid(fix_version):
                 assert k == "version"
         else:
             assert k == v
+
+
+@pytest.mark.parametrize(
+    "facet_iid, expected",
+    [
+        ("a.b.c.d", ["a.b.c.d"]),
+        ("a.[b1, b2].c.[d1, d2]", ["a.b1.c.d1", "a.b1.c.d2", "a.b2.c.d1", "a.b2.c.d2"]),
+        ("a.[b1, b2].c.d", ["a.b1.c.d", "a.b2.c.d"]),
+        ("a.b.c.[d1, d2]", ["a.b.c.d1", "a.b.c.d2"]),
+    ],
+)
+def test_split_square_brackets(facet_iid, expected):
+    assert split_square_brackets(facet_iid) == expected
