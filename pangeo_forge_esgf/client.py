@@ -13,18 +13,44 @@ logger = logging.getLogger(__name__)
 # Python client for a SOLR ESGF search API
 @dataclass
 class ESGFClient:
-    base_url: str = "https://esgf-node.llnl.gov/"
+    base_url: Union[str, None] = None
     distributed: bool = True
     retracted: bool = False
     format: str = "application/solr+json"
     latest: bool = True
+    dataset_output_fields: Union[list[str], None] = None
+    file_output_fields: Union[list[str], None] = None
 
     def __post_init__(self):
+        if self.base_url is None:
+            self.base_url = "https://esgf-node.llnl.gov"
         if "search" in self.base_url:
             raise ValueError(
                 "Please provide the base URL of the ESGF search API, without `.../esg-search/search`."
             )
         self.url = os.path.join(self.base_url, "esg-search/search")
+        # pad the user input with required fields
+        if self.dataset_output_fields is not None:
+            dataset_required_fields = ["id", "instance_id"]
+            self.dataset_fields = set(
+                self.dataset_output_fields + dataset_required_fields
+            )
+        else:
+            self.dataset_fields = None  # get all fields available
+        if self.file_output_fields is not None:
+            file_required_fields = [
+                "id",
+                "instance_id",
+                "data_node",
+                "title",
+                "url",
+                "checksum",
+                "checksum_type",
+                "tracking_id",
+            ]
+            self.file_fields = set(self.file_output_fields + file_required_fields)
+        else:
+            self.file_fields = None  # get all fields available
 
     def _paginated_request(self, **params):
         """Yields paginated responses using the ESGF REST API."""
@@ -50,6 +76,8 @@ class ESGFClient:
             "latest": str(self.latest).lower(),
             "distrib": str(self.distributed).lower(),
         }
+        if self.dataset_fields is not None:
+            params["fields"] = ",".join(self.dataset_fields)
         params.update(facets)
         self._dataset_results = self._paginated_request(**params)
 
@@ -66,6 +94,8 @@ class ESGFClient:
             "distrib": str(self.distributed).lower(),
             "dataset_id": dataset_ids,
         }
+        if self.file_fields is not None:
+            params["fields"] = ",".join(self.file_fields)
         self._file_results = self._paginated_request(**params)
 
     def _get_response_fields(self, fields: list[str], type: str) -> list[dict]:
@@ -78,12 +108,13 @@ class ESGFClient:
         else:
             raise ValueError("Invalid type. Must be 'dataset' or 'file'.")
 
-        # Note that it seems to be necessary to include the instance_id field in the search results to get any response data
-        if "instance_id" not in fields:
-            fields.append("instance_id")
         for response in response_data:
             for r in response["response"]["docs"]:
-                response_list.append({field: r[field] for field in fields})
+                if fields is None:
+                    # extract everything
+                    response_list.append(r)
+                else:
+                    response_list.append({f: r[f] for f in fields})
         return response_list
 
     def _get_unique_field_list(self, field: str, type: str) -> list[str]:
@@ -114,15 +145,6 @@ class ESGFClient:
     def get_recipe_inputs_from_iid_list(
         self, instance_id_list: list[str]
     ) -> dict[str, dict[str, dict[str, Any]]]:
-        fields = [
-            "id",
-            "instance_id",
-            "data_node",
-            "title",
-            "checksum",
-            "checksum_type",
-            "url",
-        ]
         dataset_ids = []
         # TODO refactor to take iid list as top level api
         for iid in instance_id_list:
@@ -132,13 +154,9 @@ class ESGFClient:
             dataset_ids.extend(dataset_ids_single)
         logger.debug(f"Searching files for {dataset_ids=}")
         self._search_files_from_dataset_ids(dataset_ids)
-        logger.debug(f"Extracting fields {fields=}")
-        response = self._get_response_fields(fields, type="file")
+        logger.debug(f"Extracting fields {self.file_fields=}")
+        response = self._get_response_fields(self.file_fields, type="file")
         formatted_response = self._format_file_response_for_recipe(response)
-        iids_missed = set(dataset_ids) - set(formatted_response.keys())
-        logger.info(
-            f"Could not find input for {len(iids_missed)} datasets: {iids_missed}"
-        )
         logger.debug(f"{formatted_response=}")
         return self._prune_formatted_response(formatted_response)
 
@@ -157,20 +175,18 @@ class ESGFClient:
         )
         for r in response:
             instance_id, filename, data_node = sanitize_id(r)
-            formatted_response[instance_id][data_node][filename] = {
-                k: v
-                for k, v in r.items()
-                if k not in ["id", "instance_id", "data_node", "title"]
-            }
+            formatted_response[instance_id][data_node][filename] = r
         return formatted_response
 
     def _prune_formatted_response(
-        self, formatted_response: dict[str, dict[str, dict[str, Any]]]
+        self,
+        formatted_response: dict[str, dict[str, dict[str, Any]]],
     ) -> dict[str, dict[str, Any]]:
         """Prune the formatted response:
         - Find all filenames
         - Remove data nodes that do not contain all filenames
         - Pick data nodes based on preferred list
+
         """
         filenames: dict[str, list[str]] = {i: [] for i in formatted_response.keys()}
         for instance_id, data_node_dict in formatted_response.items():
@@ -203,14 +219,18 @@ class ESGFClient:
 
         for instance_id, data_node_dict in formatted_response.items():
             for data_node, file_dict in data_node_dict.items():
-                for f, fields in file_dict.items():
+                for filename, fields in file_dict.items():
                     http_url = get_http_url(fields["url"])
                     if http_url is not None:
                         insert_dict = {"url": http_url}
-                        # TODO: We might want to retain other fields here in addition to the checksum?
-                        for field in ["checksum", "checksum_type"]:
-                            insert_dict[field] = fields[field]
-                        single_http_url_response[instance_id][data_node][f] = (
+                        if self.file_fields is not None:
+                            other_fields = self.file_fields
+                        else:
+                            other_fields = list(fields.keys())
+                        for f in other_fields:
+                            if f != "url":
+                                insert_dict[f] = fields[f]
+                        single_http_url_response[instance_id][data_node][filename] = (
                             insert_dict
                         )
         log_missing_iids(
