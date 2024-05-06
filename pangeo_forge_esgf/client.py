@@ -25,7 +25,7 @@ class ESGFClient:
     def _paginated_request(self, **params):
         """Yields paginated responses using the ESGF REST API."""
         offset = params.get("offset", 0)
-        limit = params.get("limit", 50)
+        limit = params.get("limit", 25)
         total = offset + limit + 1
         while (offset + limit) < total:
             response = requests.get(self.url, params=params)
