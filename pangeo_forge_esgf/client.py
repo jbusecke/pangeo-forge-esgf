@@ -1,5 +1,6 @@
 import requests
 import os
+import warnings
 from typing import Any, Union
 from dataclasses import dataclass
 from pangeo_forge_esgf.utils import facets_from_iid, split_square_brackets
@@ -80,7 +81,7 @@ class ESGFClient:
             params["fields"] = ",".join(self.dataset_fields)
         params.update(facets)
         response_generator = self._paginated_request(**params)
-        self._dataset_results = self._get_response_fields(
+        self._dataset_results = self.get_response_fields(
             response_generator, fields=self.dataset_fields
         )
 
@@ -115,12 +116,12 @@ class ESGFClient:
             }
             batch_params["dataset_id"] = dataset_ids_batch
             response_generator = self._paginated_request(**batch_params)
-            processed_response: list[dict] = self._get_response_fields(
+            processed_response: list[dict] = self.get_response_fields(
                 response_generator, fields=self.file_fields
             )
             self._file_results.extend(processed_response)
 
-    def _get_response_fields(self, response_generator, fields=None) -> list[dict]:
+    def get_response_fields(self, response_generator, fields) -> list[dict]:
         response_list = []
         for response in response_generator:
             for r in response["response"]["docs"]:
@@ -128,7 +129,14 @@ class ESGFClient:
                     # extract everything
                     response_list.append(r)
                 else:
-                    response_list.append({f: r[f] for f in fields})
+                    r_single = {f: r.get(f, "not_found") for f in fields}
+                    not_found = [k for k, v in r_single.items() if v == "not_found"]
+                    if len(not_found) > 0:
+                        warnings.warn(
+                            f"Could not find field {not_found} in response: {r_single}",
+                            UserWarning,
+                        )
+                    response_list.append(r_single)
         return response_list
 
     def _get_unique_field_list(

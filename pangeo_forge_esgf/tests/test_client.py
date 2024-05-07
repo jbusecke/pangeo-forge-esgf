@@ -24,7 +24,24 @@ class TestESGFClient:
         client = ESGFClient()
         assert client.url == "https://esgf-node.llnl.gov/esg-search/search"
 
+    def test_warning_field_not_found(self):
+        client = ESGFClient()
 
+        def output_generator():
+            output_list = [
+                {"instance_id": "test", "title": "test", "url": "test"},
+                {"instance_id": "test2", "title": "test2", "url": "test2"},
+            ]
+            current = 0
+            while current < len(output_list):
+                yield {"response": {"docs": [output_list[current]]}}
+                current += 1
+
+        with pytest.warns(UserWarning, match=r"^Could not find field.*"):
+            client.get_response_fields(output_generator(), fields=["not_a_field"])
+
+
+#
 @pytest.mark.parametrize("file_output_fields", [None, ["instance_id", "title", "url"]])
 def test_end_to_end(file_output_fields):
     client = ESGFClient(file_output_fields=file_output_fields)
