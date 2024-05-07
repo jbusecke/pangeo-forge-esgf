@@ -79,36 +79,50 @@ class ESGFClient:
         if self.dataset_fields is not None:
             params["fields"] = ",".join(self.dataset_fields)
         params.update(facets)
-        self._dataset_results = self._paginated_request(**params)
+        response_generator = self._paginated_request(**params)
+        self._dataset_results = self._get_response_fields(
+            response_generator, fields=self.dataset_fields
+        )
 
     def _search_files_from_dataset_ids(self, dataset_ids: list[str]):
         """Search files from dataset ids. (dataset_id = instance_id|data_node)"""
         # raise error if datasets_id is empty
         if len(dataset_ids) == 0:
             raise ValueError("No dataset_ids provided.")
+
+        # batch the dataset_ids with a batch_length and combine at the end
+        batch_length = 200
+        dataset_ids_batches: list[list[str]] = [
+            dataset_ids[i : i + batch_length]
+            for i in range(0, len(dataset_ids), batch_length)
+        ]
+
         params = {
             "type": "File",
             "retracted": str(self.retracted).lower(),
             "format": self.format,
             "latest": str(self.latest).lower(),
             "distrib": str(self.distributed).lower(),
-            "dataset_id": dataset_ids,
         }
         if self.file_fields is not None:
             params["fields"] = ",".join(self.file_fields)
-        self._file_results = self._paginated_request(**params)
 
-    def _get_response_fields(self, fields: list[str], type: str) -> list[dict]:
-        """Extract fields from the search results. This also materializes the generator."""
+        # get the results for each batch
+        self._file_results = []
+        for dataset_ids_batch in dataset_ids_batches:
+            batch_params: dict[str, Union[str, list]] = {
+                k: v for k, v in params.items()
+            }
+            batch_params["dataset_id"] = dataset_ids_batch
+            response_generator = self._paginated_request(**batch_params)
+            processed_response: list[dict] = self._get_response_fields(
+                response_generator, fields=self.file_fields
+            )
+            self._file_results.extend(processed_response)
+
+    def _get_response_fields(self, response_generator, fields=None) -> list[dict]:
         response_list = []
-        if type == "dataset":
-            response_data = self._dataset_results
-        elif type == "file":
-            response_data = self._file_results
-        else:
-            raise ValueError("Invalid type. Must be 'dataset' or 'file'.")
-
-        for response in response_data:
+        for response in response_generator:
             for r in response["response"]["docs"]:
                 if fields is None:
                     # extract everything
@@ -117,11 +131,11 @@ class ESGFClient:
                     response_list.append({f: r[f] for f in fields})
         return response_list
 
-    def _get_unique_field_list(self, field: str, type: str) -> list[str]:
+    def _get_unique_field_list(
+        self, results: list[dict[str, Any]], field: str
+    ) -> list[str]:
         """return list of unique values for a field in the search results."""
-        return list(
-            set([f[field] for f in self._get_response_fields([field], type=type)])
-        )
+        return list(set([f[field] for f in results]))
 
     def expand_instance_id_list(self, instance_id_list: list[str]) -> list[str]:
         """Given a list of instance ids with wildcards and square brackets, return all instance ids that the ESGF API can resolve."""
@@ -138,7 +152,7 @@ class ESGFClient:
             facets = facets_from_iid(iid)
             self._search_datasets(**facets)
             valid_iid_list.extend(
-                self._get_unique_field_list("instance_id", type="dataset")
+                self._get_unique_field_list(self._dataset_results, "instance_id")
             )
         return list(set(valid_iid_list))
 
@@ -150,13 +164,14 @@ class ESGFClient:
         for iid in instance_id_list:
             facets = facets_from_iid(iid)
             self._search_datasets(**facets)
-            dataset_ids_single = self._get_unique_field_list("id", type="dataset")
+            dataset_ids_single = self._get_unique_field_list(
+                self._dataset_results, "id"
+            )
             dataset_ids.extend(dataset_ids_single)
         logger.debug(f"Searching files for {dataset_ids=}")
         self._search_files_from_dataset_ids(dataset_ids)
         logger.debug(f"Extracting fields {self.file_fields=}")
-        response = self._get_response_fields(self.file_fields, type="file")
-        formatted_response = self._format_file_response_for_recipe(response)
+        formatted_response = self._format_file_response_for_recipe(self._file_results)
         logger.debug(f"{formatted_response=}")
         return self._prune_formatted_response(formatted_response)
 
