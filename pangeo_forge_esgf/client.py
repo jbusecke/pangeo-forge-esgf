@@ -81,9 +81,7 @@ class ESGFClient:
             params["fields"] = ",".join(self.dataset_fields)
         params.update(facets)
         response_generator = self._paginated_request(**params)
-        self._dataset_results = self.get_response_fields(
-            response_generator, fields=self.dataset_fields
-        )
+        return self.get_response_fields(response_generator, fields=self.dataset_fields)
 
     def _search_files_from_dataset_ids(self, dataset_ids: list[str]):
         """Search files from dataset ids. (dataset_id = instance_id|data_node)"""
@@ -92,7 +90,7 @@ class ESGFClient:
             raise ValueError("No dataset_ids provided.")
 
         # batch the dataset_ids with a batch_length and combine at the end
-        batch_length = 200
+        batch_length = 50
         dataset_ids_batches: list[list[str]] = [
             dataset_ids[i : i + batch_length]
             for i in range(0, len(dataset_ids), batch_length)
@@ -109,7 +107,7 @@ class ESGFClient:
             params["fields"] = ",".join(self.file_fields)
 
         # get the results for each batch
-        self._file_results = []
+        file_results = []
         for dataset_ids_batch in dataset_ids_batches:
             batch_params: dict[str, Union[str, list]] = {
                 k: v for k, v in params.items()
@@ -119,7 +117,8 @@ class ESGFClient:
             processed_response: list[dict] = self.get_response_fields(
                 response_generator, fields=self.file_fields
             )
-            self._file_results.extend(processed_response)
+            file_results.extend(processed_response)
+        return file_results
 
     def get_response_fields(self, response_generator, fields) -> list[dict]:
         response_list = []
@@ -133,20 +132,17 @@ class ESGFClient:
                     not_found = [k for k, v in r_single.items() if v == "not_found"]
                     if len(not_found) > 0:
                         warnings.warn(
-                            f"Could not find field {not_found} in response: {r_single}",
+                            f"Could not find field {not_found} in response: {r_single['id']}",
                             UserWarning,
                         )
                     response_list.append(r_single)
         return response_list
 
-    def _get_unique_field_list(
-        self, results: list[dict[str, Any]], field: str
-    ) -> list[str]:
-        """return list of unique values for a field in the search results."""
-        return list(set([f[field] for f in results]))
-
-    def expand_instance_id_list(self, instance_id_list: list[str]) -> list[str]:
-        """Given a list of instance ids with wildcards and square brackets, return all instance ids that the ESGF API can resolve."""
+    def get_instance_id_input(
+        self, instance_id_list: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        iid_info_dict = {}
+        # first extend the instance_id_list with the square brackets
         search_iids = []
         for iid in instance_id_list:
             if "[" in iid:
@@ -154,32 +150,28 @@ class ESGFClient:
             else:
                 search_iids.append(iid)
 
-        # now make a request for each of these instance ids
-        valid_iid_list = []
+        # TODO: can we paralellize this? We are making a request for each instance_id
         for iid in search_iids:
             facets = facets_from_iid(iid)
-            self._search_datasets(**facets)
-            valid_iid_list.extend(
-                self._get_unique_field_list(self._dataset_results, "instance_id")
-            )
-        return list(set(valid_iid_list))
+            data = self._search_datasets(**facets)
+            for d in data:
+                iid_info_dict[d["instance_id"]] = d
+        return iid_info_dict
 
-    def get_recipe_inputs_from_iid_list(
-        self, instance_id_list: list[str]
+    def expand_instance_id_list(self, instance_id_list: list[str]) -> list[str]:
+        """helper function for users to send requests"""
+        iid_info_dict = self.get_instance_id_input(instance_id_list)
+        return list(iid_info_dict.keys())
+
+    def get_recipe_inputs_from_dataset_ids(
+        self, dataset_ids: list[str]
     ) -> dict[str, dict[str, dict[str, Any]]]:
-        dataset_ids = []
-        # TODO refactor to take iid list as top level api
-        for iid in instance_id_list:
-            facets = facets_from_iid(iid)
-            self._search_datasets(**facets)
-            dataset_ids_single = self._get_unique_field_list(
-                self._dataset_results, "id"
-            )
-            dataset_ids.extend(dataset_ids_single)
+        """Takes a list of dataset instance_ids (usually formatted as "<instance_id>|<data_node>")
+        and returns a dictionary of files that can be used as inputs for a recipe."""
         logger.debug(f"Searching files for {dataset_ids=}")
-        self._search_files_from_dataset_ids(dataset_ids)
+        file_results = self._search_files_from_dataset_ids(dataset_ids)
         logger.debug(f"Extracting fields {self.file_fields=}")
-        formatted_response = self._format_file_response_for_recipe(self._file_results)
+        formatted_response = self._format_file_response_for_recipe(file_results)
         logger.debug(f"{formatted_response=}")
         return self._prune_formatted_response(formatted_response)
 

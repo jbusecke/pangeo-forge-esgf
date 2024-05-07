@@ -46,6 +46,7 @@ class TestESGFClient:
 def test_end_to_end(file_output_fields):
     client = ESGFClient(file_output_fields=file_output_fields)
     raw_iids = [
+        # these would never return anything under the old system
         "CMIP6.ScenarioMIP.NCAR.CESM2-WACCM.ssp245.r1i1p1f1.SImon.sifb.gn.v20190815",
         "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r8i1p1f1.Omon.zmeso.gn.v20180803",
         "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r24i1p1f1.SImon.sifb.gn.v20180803",
@@ -54,15 +55,16 @@ def test_end_to_end(file_output_fields):
         "CMIP6.ScenarioMIP.IPSL.IPSL-CM6A-LR.ssp245.r3i1p1f1.Omon.zmeso.gn.v20191121",
         "CMIP6.ScenarioMIP.MPI-M.MPI-ESM1-2-LR.ssp245.r43i1p1f1.SImon.sifb.gn.v20190815",
         "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r29i1p1f1.SImon.siitdthick.gn.v20180803",
-        # these did pass
+        # these did pass previously
         "CMIP6.CMIP.THU.CIESM.historical.r3i1p1f1.Omon.tos.gn.v20200220",
         "CMIP6.ScenarioMIP.EC-Earth-Consortium.EC-Earth3.ssp245.r15i1p1f2.day.pr.gr.v20201015",
         "CMIP6.ScenarioMIP.EC-Earth-Consortium.EC-Earth3.ssp245.r111i1p1f1.day.psl.gr.v20210401",
         "CMIP6.ScenarioMIP.MIROC.MIROC6.ssp585.r31i1p1f1.day.pr.gn.v20200623",
         "CMIP6.CMIP.MIROC.MIROC6.historical.r37i1p1f1.day.pr.gn.v20200519",
     ]
-    parsed_iids = client.expand_instance_id_list(raw_iids)
-    output = client.get_recipe_inputs_from_iid_list(parsed_iids)
+    iid_info_dict = client.get_instance_id_input(raw_iids)
+    dataset_ids = [i["id"] for i in iid_info_dict.values()]
+    output = client.get_recipe_inputs_from_dataset_ids(dataset_ids)
 
     # this might fail in the future (due to flakyness but its a nice test of https://github.com/jbusecke/pangeo-forge-esgf/issues/42)
     assert set(output.keys()).issubset(set(raw_iids))
