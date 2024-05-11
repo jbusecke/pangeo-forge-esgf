@@ -95,7 +95,6 @@ class ESGFAsyncClient:
             dataset_ids[i : i + batchsize]
             for i in range(0, len(dataset_ids), batchsize)
         ]
-        print(dataset_ids_batches)
         file_response = await self.fetch_all(
             "File",
             facets_list=[
@@ -162,7 +161,6 @@ class ESGFAsyncClient:
         """
         dataset_response = await self.search_datasets(iids)
         dataset_ids = [r["id"] for r in dataset_response]
-        print(dataset_ids)
         file_response = await self.search_files(dataset_ids)
         return combine_to_iid_dict(dataset_response, file_response)
 
