@@ -90,11 +90,12 @@ class ESGFAsyncClient:
         return dataset_response_merged
 
     async def search_files(self, dataset_ids: list[str]):
-        batchsize = 100
+        batchsize = 10
         dataset_ids_batches = [
             dataset_ids[i : i + batchsize]
             for i in range(0, len(dataset_ids), batchsize)
         ]
+        print(dataset_ids_batches)
         file_response = await self.fetch_all(
             "File",
             facets_list=[
@@ -161,6 +162,7 @@ class ESGFAsyncClient:
         """
         dataset_response = await self.search_datasets(iids)
         dataset_ids = [r["id"] for r in dataset_response]
+        print(dataset_ids)
         file_response = await self.search_files(dataset_ids)
         return combine_to_iid_dict(dataset_response, file_response)
 
@@ -274,7 +276,7 @@ def combine_to_iid_dict(
             files_matching = [
                 i
                 for i in file_dict[iid].values()
-                if i["data_node"] == node and get_http_url(i) is not None
+                if i["data_node"] == node and "HTTPServer" in i["access"]
             ]
             if len(files_matching) == max_num_files_dataset:
                 complete_data_nodes.append(node)
