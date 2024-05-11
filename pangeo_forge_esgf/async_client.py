@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pangeo_forge_esgf.utils import facets_from_iid, split_square_brackets
 from typing import Union, Any
 import warnings
-from tqdm.asyncio import gather
+from tqdm.asyncio import tqdm
 
 
 @dataclass
@@ -13,9 +13,9 @@ class ESGFAsyncClient:
     limit: int = 10
     latest: bool = True
     distributed: bool = False
-    max_concurrency: int = 100
-    connection_per_host: int = 50
-    timeout: int = 10
+    max_concurrency: int = 200
+    connection_per_host: int = 10
+    timeout: int = 30
 
     def __post_init__(self):
         if self.urls is None:
@@ -26,7 +26,7 @@ class ESGFAsyncClient:
                 "https://esgf-data.dkrz.de/esg-search/search",
                 "https://esgf-node.ipsl.upmc.fr/esg-search/search",
                 "https://esg-dn1.nsc.liu.se/esg-search/search",
-                # "https://esgf.nci.org.au/esg-search/search",
+                "https://esgf.nci.org.au/esg-search/search",
             ]
         self.core_params = {
             "limit": self.limit,
@@ -38,9 +38,12 @@ class ESGFAsyncClient:
             self.max_concurrency
         )  # https://quentin.pradet.me/blog/how-do-you-limit-memory-usage-with-asyncio.html
         self.connector = aiohttp.TCPConnector(limit_per_host=self.connection_per_host)
+        self.timeout = aiohttp.ClientTimeout(total=self.timeout)
 
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession(connector=self.connector)
+        self.session = aiohttp.ClientSession(
+            connector=self.connector, raise_for_status=True
+        )
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -53,24 +56,27 @@ class ESGFAsyncClient:
         offset = paginated_params.get("offset", 0)
         limit = paginated_params.get("limit", self.limit)
         total = offset + limit + 1
-        async with self.semaphore:
-            async with self.session.get(
-                url, params=paginated_params, timeout=self.timeout
-            ) as res:
-                if res.status == 200:
-                    response = await res.json(
-                        content_type="text/json"
-                    )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
-                    limit = len(response["response"]["docs"])
-                    total = response["response"]["numFound"]
-                    offset = response["response"]["start"]
-                    params["offset"] = offset + limit
-                    results.extend(
-                        response["response"]["docs"]
-                    )  # Assuming the data is in 'results' key
-                    if (offset + limit) < total:
-                        paginated_params["offset"] = offset + limit
-                        await self.fetch(url, paginated_params, results)
+        async with self.semaphore:  # maybe we dont need this for now.
+            try:
+                async with self.session.get(
+                    url, params=paginated_params, timeout=self.timeout
+                ) as res:
+                    if res.status == 200:
+                        response = await res.json(
+                            content_type="text/json"
+                        )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
+                        limit = len(response["response"]["docs"])
+                        total = response["response"]["numFound"]
+                        offset = response["response"]["start"]
+                        params["offset"] = offset + limit
+                        results.extend(
+                            response["response"]["docs"]
+                        )  # Assuming the data is in 'results' key
+                        if (offset + limit) < total:
+                            paginated_params["offset"] = offset + limit
+                            await self.fetch(url, paginated_params, results)
+            except (aiohttp.ClientTimeout, asyncio.TimeoutError) as e:
+                print(f"Request to {url} timed out: {e}")
         return results
 
     async def fetch_all(self, request_type: str, facets_list: list[dict]):
@@ -80,7 +86,7 @@ class ESGFAsyncClient:
             for url in self.urls:
                 params = self.core_params.copy() | {"type": request_type} | facets
                 tasks.append(self.fetch(url, params))
-        results = await gather(*tasks)
+        results = await tqdm.gather(*tasks)
         combined_results = [item for sublist in results for item in sublist]
         return combined_results
 
