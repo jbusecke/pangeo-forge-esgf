@@ -1,7 +1,7 @@
 import aiohttp
 import asyncio
 from dataclasses import dataclass
-from pangeo_forge_esgf.utils import facets_from_iid
+from pangeo_forge_esgf.utils import facets_from_iid, split_square_brackets
 from typing import Union, Any
 import warnings
 
@@ -108,7 +108,8 @@ class ESGFAsyncClient:
     # TODO: Put this in the README
 
     async def expand_iids(self, iids: list[str]):
-        """Convience wrapper to make it easy to search iids for requests
+        """Convience wrapper to make it easy to search iids for requests.
+        Also splits square brackets!
 
         Parameters
         ----------
@@ -132,7 +133,14 @@ class ESGFAsyncClient:
         expanded_iids = asyncio.run(main())
         ```
         """
-        dataset_response = await self.search_datasets(iids)
+        iids_split = []
+        for iid in iids:
+            if "[" in iid:
+                iids_split.extend(split_square_brackets(iid))
+            else:
+                iids_split.append(iid)
+
+        dataset_response = await self.search_datasets(iids_split)
         # clean up iids
         clean_iids: list[str] = [sanitize_id(r) for r in dataset_response]
         unique_iids = list(set([iid for iid in clean_iids]))
