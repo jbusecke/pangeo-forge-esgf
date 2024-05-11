@@ -1,4 +1,3 @@
-from .recipe_inputs import get_urls_from_esgf
 import logging
 import backoff  # noqa #https://github.com/litl/backoff/issues/71
 
