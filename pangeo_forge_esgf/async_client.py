@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pangeo_forge_esgf.utils import facets_from_iid, split_square_brackets
 from typing import Union, Any
 import warnings
+from tqdm.asyncio import gather
 
 
 @dataclass
@@ -19,13 +20,13 @@ class ESGFAsyncClient:
     def __post_init__(self):
         if self.urls is None:
             self.urls = [
+                "https://esgf-node.llnl.gov/esg-search/search",
                 "https://esgf.ceda.ac.uk/esg-search/search",
+                "https://esgf-node.ornl.gov/esg-search/search",
                 "https://esgf-data.dkrz.de/esg-search/search",
                 "https://esgf-node.ipsl.upmc.fr/esg-search/search",
                 "https://esg-dn1.nsc.liu.se/esg-search/search",
-                "https://esgf-node.llnl.gov/esg-search/search",
-                "https://esgf.nci.org.au/esg-search/search",
-                "https://esgf-node.ornl.gov/esg-search/search",
+                # "https://esgf.nci.org.au/esg-search/search",
             ]
         self.core_params = {
             "limit": self.limit,
@@ -79,7 +80,7 @@ class ESGFAsyncClient:
             for url in self.urls:
                 params = self.core_params.copy() | {"type": request_type} | facets
                 tasks.append(self.fetch(url, params))
-        results = await asyncio.gather(*tasks)
+        results = await gather(*tasks)
         combined_results = [item for sublist in results for item in sublist]
         return combined_results
 
