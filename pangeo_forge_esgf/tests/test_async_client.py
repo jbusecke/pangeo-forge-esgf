@@ -1,4 +1,9 @@
-from pangeo_forge_esgf.async_client import ESGFAsyncClient, combine_responses
+from pangeo_forge_esgf.async_client import (
+    ESGFAsyncClient,
+    combine_responses,
+    sanitize_id,
+    get_sorted_http_urls_from_iid_dict,
+)
 import pytest
 import asyncio
 import requests
@@ -18,7 +23,7 @@ class TestESGFAsyncClient:
             "https://esgf-node.ornl.gov/esg-search/search",
         ],
     )
-    def test_single_request_against_sync(self, url):
+    def test_fetch_against_sync(self, url):
         limit = 10
         request_type = "Dataset"
         facets = {
@@ -34,19 +39,76 @@ class TestESGFAsyncClient:
             "version": "20190815",
         }
         params = {
+            "latest": "true",
             "limit": limit,
             "distrib": "false",
             "format": "application/solr+json",
             "type": request_type,
         }
+        combined_params = params | facets
 
         async def main():
-            client = ESGFAsyncClient([url], limit=limit)
-            return await client.fetch_all("Dataset", [facets])
+            async with ESGFAsyncClient([url], limit=limit) as client:
+                return await client.fetch_all("Dataset", [facets])
 
         data_async = asyncio.run(main())
-        data_sync = requests.get(url, params=params | facets).json()["response"]["docs"]
+        res = requests.get(url, params=combined_params)
+        res.raise_for_status()
+        data_sync = res.json()["response"]["docs"]
         assert data_async == data_sync
+
+    def test_paginated_fetch_against_sync(self):
+        pass
+
+    def test_search_datasets(self):
+        iid_list = [
+            "CMIP6.ScenarioMIP.*.*.ssp245.*.SImon.sifb.gn.v20190815",
+            "CMIP6.CMIP.*.*.historical.*.Omon.zmeso.gn.v20180803",
+        ]
+
+        async def main():
+            async with ESGFAsyncClient() as client:
+                return await client.search_datasets(iid_list)
+
+        data = asyncio.run(main())
+        assert len(data) > 0
+
+    def test_search_files(self):
+        did_list = [
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r21i1p1f1.Omon.zmeso.gn.v20180803|vesg.ipsl.upmc.fr",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r14i1p1f1.Omon.zmeso.gn.v20180803|vesg.ipsl.upmc.fr",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r3i1p1f1.Omon.zmeso.gn.v20180803|vesg.ipsl.upmc.fr",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r5i1p1f1.Omon.zmeso.gn.v20180803|aims3.llnl.gov",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r21i1p1f1.Omon.zmeso.gn.v20180803|vesg.ipsl.upmc.fr",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r10i1p1f1.Omon.zmeso.gn.v20180803|esgf-node.ornl.gov",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r22i1p1f1.Omon.zmeso.gn.v20180803|vesg.ipsl.upmc.fr",
+            "CMIP6.ScenarioMIP.NCAR.CESM2-WACCM.ssp245.r1i1p1f1.SImon.sifb.gn.v20190815|esgf-node.ornl.gov",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r7i1p1f1.Omon.zmeso.gn.v20180803|esgf-node.ornl.gov",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r24i1p1f1.Omon.zmeso.gn.v20180803|vesg.ipsl.upmc.fr",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r12i1p1f1.Omon.zmeso.gn.v20180803|aims3.llnl.gov",
+        ]
+
+        async def main():
+            async with ESGFAsyncClient() as client:
+                return await client.search_files(did_list)
+
+        data = asyncio.run(main())
+        assert len(data) > 0
+
+    def test_expand_iids(self):
+        "Check that for a list of valid iids we get the same back"
+        iids = [
+            "CMIP6.ScenarioMIP.NCAR.CESM2-WACCM.ssp245.r1i1p1f1.SImon.sifb.gn.v20190815",
+            "CMIP6.CMIP.IPSL.IPSL-CM6A-LR.historical.r21i1p1f1.Omon.zmeso.gn.v20180803",
+        ]
+
+        async def main():
+            async with ESGFAsyncClient() as client:
+                return await client.expand_iids(iids)
+
+        data = asyncio.run(main())
+        for iid in iids:
+            assert iid in data
 
 
 def test_combine_responses():
@@ -76,3 +138,46 @@ def test_combine_response_different():
     ]
     with pytest.raises(ValueError):
         combine_responses(responses)
+
+
+@pytest.mark.parametrize(
+    "input",
+    [
+        {
+            "type": "Dataset",
+            "id": "some.facets.as.usual",
+            "title": "and_a_filename_with_underscores.nc",
+            "data_node": "just_some_node",
+        },
+        {
+            "type": "File",
+            "dataset_id": "some.facets.as.usual|just_some_node",
+            "title": "and_a_filename_with_underscores.nc",
+            "data_node": "just_some_node",
+        },
+    ],
+)
+def test_sanitize_id(input):
+    iid = sanitize_id(input)
+    assert iid == "some.facets.as.usual"
+
+
+def test_combine_to_iid_dict():
+    pass
+    # TODO
+
+
+def test_get_sorted_http_urls_from_iid_dict():
+    iid_dict = {
+        "dataset": {"some": "stuff"},
+        "files": [
+            {
+                "url": ["http://some.url-this is last|something|HTTPServer"],
+                "title": "b",
+            },
+            {"url": ["http://some.other.url|something|HTTPServer"], "title": "a"},
+        ],
+    }
+    expected = ["http://some.other.url", "http://some.url-this is last"]
+    urls = get_sorted_http_urls_from_iid_dict(iid_dict)
+    assert urls == expected
