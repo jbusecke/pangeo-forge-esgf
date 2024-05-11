@@ -276,7 +276,7 @@ def combine_to_iid_dict(
             files_matching = [
                 i
                 for i in file_dict[iid].values()
-                if i["data_node"] == node and "HTTPServer" in i["access"]
+                if i["data_node"] == node and get_http_url(i) is not None
             ]
             if len(files_matching) == max_num_files_dataset:
                 complete_data_nodes.append(node)
