@@ -23,7 +23,11 @@ class TestESGFAsyncClient:
             "https://esgf-node.ornl.gov/esg-search/search",
         ],
     )
+    # TODO: allow_failures is not working (I have no idea how to do this,
+    # and tried to copy stuff from CHAT GPT but it didn't work)
+    # @pytest.mark.allow_failures(3) # allow 3 search nodes to fail
     def test_fetch_against_sync(self, url):
+        # small request that wont require pagination
         limit = 10
         request_type = "Dataset"
         facets = {
@@ -57,8 +61,65 @@ class TestESGFAsyncClient:
         data_sync = res.json()["response"]["docs"]
         assert data_async == data_sync
 
-    def test_paginated_fetch_against_sync(self):
-        pass
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://esgf.ceda.ac.uk/esg-search/search",
+            "https://esgf-data.dkrz.de/esg-search/search",
+            "https://esgf-node.ipsl.upmc.fr/esg-search/search",
+            "https://esg-dn1.nsc.liu.se/esg-search/search",
+            "https://esgf-node.llnl.gov/esg-search/search",
+            "https://esgf.nci.org.au/esg-search/search",
+            "https://esgf-node.ornl.gov/esg-search/search",
+        ],
+    )
+    def test_paginated_fetch_against_sync(self, url):
+        # Larger request with small limit, that will require pagination
+        limit = 1
+        request_type = "Dataset"
+        facets = {
+            "mip_era": "CMIP6",
+            "activity_id": "ScenarioMIP",
+            "table_id": "SImon",
+            "variable_id": "sifb",
+            "grid_label": "gn",
+            "experiment_id": "ssp245",
+            "member_id": "r1i1p1f1",
+        }
+        params = {
+            "latest": "true",
+            "limit": limit,
+            "distrib": "false",
+            "format": "application/solr+json",
+            "type": request_type,
+        }
+        combined_params = params | facets
+
+        def paginated_sync_request(url, **params):
+            """Yields paginated responses using the ESGF REST API."""
+            offset = params.get("offset", 0)
+            limit = params["limit"]
+            total = offset + limit + 1
+            while (offset + limit) < total:
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                response = response.json()
+                yield response["response"]["docs"]
+                limit = len(response["response"]["docs"])
+                total = response["response"]["numFound"]
+                offset = response["response"]["start"]
+                params["offset"] = offset + limit
+
+        async def main():
+            async with ESGFAsyncClient([url], limit=limit) as client:
+                return await client.fetch_all("Dataset", [facets])
+
+        data_async = asyncio.run(main())
+        raw_data_sync = list(paginated_sync_request(url, **combined_params))
+        data_sync = []
+        for data in raw_data_sync:
+            data_sync.extend(data)
+        assert data_async == data_sync
 
     def test_search_datasets(self):
         iid_list = [

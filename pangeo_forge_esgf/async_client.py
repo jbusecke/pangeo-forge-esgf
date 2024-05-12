@@ -1,5 +1,4 @@
 import aiohttp
-import asyncio
 from dataclasses import dataclass
 from pangeo_forge_esgf.utils import facets_from_iid, split_square_brackets
 from typing import Union, Any
@@ -13,9 +12,9 @@ class ESGFAsyncClient:
     limit: int = 10
     latest: bool = True
     distributed: bool = False
-    max_concurrency: int = 200
+    # max_concurrency: int = 20
     connection_per_host: int = 10
-    timeout: int = 30
+    timeout: int = 5
 
     def __post_init__(self):
         if self.urls is None:
@@ -34,9 +33,9 @@ class ESGFAsyncClient:
             "distrib": str(self.distributed).lower(),
             "format": "application/solr+json",
         }
-        self.semaphore = asyncio.BoundedSemaphore(
-            self.max_concurrency
-        )  # https://quentin.pradet.me/blog/how-do-you-limit-memory-usage-with-asyncio.html
+        # self.semaphore = asyncio.BoundedSemaphore(
+        #     self.max_concurrency
+        # )  # https://quentin.pradet.me/blog/how-do-you-limit-memory-usage-with-asyncio.html
         self.connector = aiohttp.TCPConnector(limit_per_host=self.connection_per_host)
         self.timeout = aiohttp.ClientTimeout(total=self.timeout)
 
@@ -56,27 +55,27 @@ class ESGFAsyncClient:
         offset = paginated_params.get("offset", 0)
         limit = paginated_params.get("limit", self.limit)
         total = offset + limit + 1
-        async with self.semaphore:  # maybe we dont need this for now.
-            try:
-                async with self.session.get(
-                    url, params=paginated_params, timeout=self.timeout
-                ) as res:
-                    if res.status == 200:
-                        response = await res.json(
-                            content_type="text/json"
-                        )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
-                        limit = len(response["response"]["docs"])
-                        total = response["response"]["numFound"]
-                        offset = response["response"]["start"]
-                        params["offset"] = offset + limit
-                        results.extend(
-                            response["response"]["docs"]
-                        )  # Assuming the data is in 'results' key
-                        if (offset + limit) < total:
-                            paginated_params["offset"] = offset + limit
-                            await self.fetch(url, paginated_params, results)
-            except (aiohttp.ClientTimeout, asyncio.TimeoutError) as e:
-                print(f"Request to {url} timed out: {e}")
+        # async with self.semaphore:  # maybe we dont need this for now.
+        try:
+            async with self.session.get(
+                url, params=paginated_params, timeout=self.timeout
+            ) as res:
+                if res.status == 200:
+                    response = await res.json(
+                        content_type="text/json"
+                    )  # https://stackoverflow.com/questions/48840378/python-attempt-to-decode-json-with-unexpected-mimetype
+                    limit = len(response["response"]["docs"])
+                    total = response["response"]["numFound"]
+                    offset = response["response"]["start"]
+                    params["offset"] = offset + limit
+                    results.extend(
+                        response["response"]["docs"]
+                    )  # Assuming the data is in 'results' key
+                    if (offset + limit) < total:
+                        paginated_params["offset"] = offset + limit
+                        await self.fetch(url, paginated_params, results)
+        except Exception as e:
+            print(f"Request to {url} failed with: {e}")
         return results
 
     async def fetch_all(self, request_type: str, facets_list: list[dict]):
