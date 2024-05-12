@@ -4,6 +4,9 @@ from pangeo_forge_esgf.utils import facets_from_iid, split_square_brackets
 from typing import Union, Any
 import warnings
 from tqdm.asyncio import tqdm
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -75,7 +78,7 @@ class ESGFAsyncClient:
                         paginated_params["offset"] = offset + limit
                         await self.fetch(url, paginated_params, results)
         except Exception as e:
-            print(f"Request to {url} failed with: {e}")
+            logger.debug(f"Request to {url} failed with: {e}")
         return results
 
     async def fetch_all(self, request_type: str, facets_list: list[dict]):
@@ -260,7 +263,7 @@ def combine_to_iid_dict(
     # compare the iids in both datasets and files
     no_file_match = set(dataset_dict.keys()) - set(file_dict.keys())
     if len(no_file_match) > 0:
-        print(f"No files found for the following iids: {list(no_file_match)}")
+        logger.info(f"No files found for the following iids: {list(no_file_match)}")
     matched_iids = set(dataset_dict.keys()) & set(file_dict.keys())
     # This should not happen. It means we failed to have unique iids
     # linkig datasets and files
