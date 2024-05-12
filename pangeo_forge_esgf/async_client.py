@@ -17,7 +17,7 @@ class ESGFAsyncClient:
     distributed: bool = False
     # max_concurrency: int = 20
     connection_per_host: int = 10
-    timeout: int = 5
+    timeout: int = 20
 
     def __post_init__(self):
         if self.urls is None:
