@@ -294,7 +294,10 @@ def test_combine_to_iid_dict_wrong_no_of_files():
             "url": ["http://some.url|something|HTTPServer"],
         },
     ]  # has less files than indicated in ds_response
-    iid_dict = combine_to_iid_dict(ds_response, file_response)
+    with pytest.warns(
+        UserWarning, match="No complete data nodes found for some.facets.and.a"
+    ):
+        iid_dict = combine_to_iid_dict(ds_response, file_response)
     assert iid_dict == {}
 
 
