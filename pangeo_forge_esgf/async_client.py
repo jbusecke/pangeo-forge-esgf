@@ -225,13 +225,16 @@ def sanitize_id(r: dict) -> str:
     elif r["type"] == "File":
         identifier = r["dataset_id"]
 
-    data_node: str = r["data_node"]
+    data_node = r["data_node"]
 
     # split the 'id' field into instance_id and data_node and filename
     def maybe_split_id(id: str) -> str:
         if "|" in id:
             diid, dn = id.split("|")
-            assert data_node == dn
+            if data_node != dn:
+                raise ValueError(
+                    f"Mismatch for data node from id ({dn}) and response field ({data_node})"
+                )
             return diid
         else:
             return id
@@ -275,6 +278,9 @@ def combine_to_iid_dict(
         max_num_files_dataset = max(
             [i["number_of_files"] for i in dataset_dict[iid].values()]
         )
+        data_nodes_from_datasets = list(
+            set([i["data_node"] for i in dataset_dict[iid].values()])
+        )
         data_nodes_from_files = list(
             set([i["data_node"] for i in file_dict[iid].values()])
         )
@@ -285,7 +291,12 @@ def combine_to_iid_dict(
                 for i in file_dict[iid].values()
                 if i["data_node"] == node and get_http_url(i) is not None
             ]
-            if len(files_matching) == max_num_files_dataset:
+            # There are cases where you somehow have files that turn up, but have no equivalend dataset id entry
+            # See https://github.com/leap-stc/cmip6-leap-feedstock/pull/164#issuecomment-2113175805
+            # I do not know how/why this happens, but I will ignore these files for now.
+            if len(files_matching) == max_num_files_dataset and (
+                node in data_nodes_from_datasets
+            ):
                 complete_data_nodes.append(node)
         if len(complete_data_nodes) == 0:
             warnings.warn(f"No complete data nodes found for {iid}")
@@ -294,11 +305,14 @@ def combine_to_iid_dict(
             # TODO: I could implement a preference list here, but for
             # now lets pick the first one
             node_pick = complete_data_nodes[0]
-        iid_dict[iid] = {}
-        iid_dict[iid]["dataset"] = dataset_dict[iid][f"{iid}|{node_pick}"]
-        iid_dict[iid]["files"] = [
-            i for i in file_dict[iid].values() if i["data_node"] == node_pick
-        ]
+
+            iid_dict[iid] = {}
+            iid_dict[iid]["dataset"] = dataset_dict[iid][f"{iid}|{node_pick}"]
+            # if this fails there is some deeper error in the results
+            # either the dataset id is not properly contstructed or who knows.
+            iid_dict[iid]["files"] = [
+                i for i in file_dict[iid].values() if i["data_node"] == node_pick
+            ]
 
     return iid_dict
 

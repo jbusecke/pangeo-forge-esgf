@@ -1,6 +1,7 @@
 from pangeo_forge_esgf.async_client import (
     ESGFAsyncClient,
     combine_responses,
+    combine_to_iid_dict,
     sanitize_id,
     get_sorted_http_urls_from_iid_dict,
 )
@@ -224,8 +225,77 @@ def test_sanitize_id(input):
 
 
 def test_combine_to_iid_dict():
-    pass
-    # TODO
+    ds_response = [
+        {
+            "id": "some.facets.and.a|data_node_a",
+            "type": "Dataset",
+            "data_node": "data_node_a",
+            "number_of_files": 2,
+        }
+    ]
+    file_response = [
+        {
+            "id": "some.facets.and.a.filename_a.nc|data_node_a",
+            "data_node": "data_node_a",
+            "type": "File",
+            "dataset_id": "some.facets.and.a|data_node_a",
+            "url": ["http://some.url|something|HTTPServer"],
+        },
+        {
+            "id": "some.facets.and.a.filename_b.nc|data_node_a",
+            "data_node": "data_node_a",
+            "type": "File",
+            "dataset_id": "some.facets.and.a|data_node_a",
+            "url": ["http://some.other.url|something|HTTPServer"],
+        },
+        # additional file entries that have no corresponding dataset entry
+        # (i have seen these in the wild, but they seem to be intermittent:
+        # https://github.com/leap-stc/cmip6-leap-feedstock/pull/164#issuecomment-2113175805)
+        {
+            "id": "some.facets.and.a.filename_a.nc|data_node_b",
+            "data_node": "data_node_b",
+            "type": "File",
+            "dataset_id": "some.facets.and.a|data_node_b",
+            "url": ["http://some.url|something|HTTPServer"],
+        },
+        {
+            "id": "some.facets.and.a.filename_b.nc|data_node_b",
+            "data_node": "data_node_b",
+            "type": "File",
+            "dataset_id": "some.facets.and.a|data_node_b",
+            "url": ["http://some.other.url|something|HTTPServer"],
+        },
+    ]
+    iid_dict = combine_to_iid_dict(ds_response, file_response)
+    expected = {
+        "some.facets.and.a": {
+            "dataset": ds_response[0],
+            "files": file_response[0:2],
+        },
+    }
+    assert iid_dict == expected
+
+
+def test_combine_to_iid_dict_wrong_no_of_files():
+    ds_response = [
+        {
+            "id": "some.facets.and.a|data_node_a",
+            "type": "Dataset",
+            "data_node": "data_node_a",
+            "number_of_files": 2,
+        }
+    ]
+    file_response = [
+        {
+            "id": "some.facets.and.a.filename_a.nc|data_node_a",
+            "data_node": "data_node_a",
+            "type": "File",
+            "dataset_id": "some.facets.and.a|data_node_a",
+            "url": ["http://some.url|something|HTTPServer"],
+        },
+    ]  # has less files than indicated in ds_response
+    iid_dict = combine_to_iid_dict(ds_response, file_response)
+    assert iid_dict == {}
 
 
 def test_get_sorted_http_urls_from_iid_dict():
