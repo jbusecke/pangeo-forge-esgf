@@ -1,6 +1,10 @@
 import pytest
 import requests
-from pangeo_forge_esgf.utils import facets_from_iid, CMIP6_naming_schema
+from pangeo_forge_esgf.utils import (
+    facets_from_iid,
+    CMIP6_naming_schema,
+    split_square_brackets,
+)
 
 
 def get_official_drs_naming_scheme():
@@ -46,3 +50,30 @@ def test_facets_from_iid(fix_version):
                 assert k == "version"
         else:
             assert k == v
+
+
+@pytest.mark.parametrize(
+    "facet_iid, expected",
+    [
+        ("a.b.c.d", ["a.b.c.d"]),
+        ("a.[b1, b2].c.[d1, d2]", ["a.b1.c.d1", "a.b1.c.d2", "a.b2.c.d1", "a.b2.c.d2"]),
+        ("a.[b1,b2].c.d", ["a.b1.c.d", "a.b2.c.d"]),
+        ("a.b.c.[d1, d2]", ["a.b.c.d1", "a.b.c.d2"]),
+        ("a.b.c.[d1, d2, d3]", ["a.b.c.d1", "a.b.c.d2", "a.b.c.d3"]),
+        (
+            "CMIP6.*.*.*.[historical, ssp126, ssp245, ssp585].*.SImon.[sifb,siitdthick].*.*",
+            [
+                "CMIP6.*.*.*.historical.*.SImon.sifb.*.*",
+                "CMIP6.*.*.*.historical.*.SImon.siitdthick.*.*",
+                "CMIP6.*.*.*.ssp126.*.SImon.sifb.*.*",
+                "CMIP6.*.*.*.ssp126.*.SImon.siitdthick.*.*",
+                "CMIP6.*.*.*.ssp245.*.SImon.sifb.*.*",
+                "CMIP6.*.*.*.ssp245.*.SImon.siitdthick.*.*",
+                "CMIP6.*.*.*.ssp585.*.SImon.sifb.*.*",
+                "CMIP6.*.*.*.ssp585.*.SImon.siitdthick.*.*",
+            ],
+        ),
+    ],
+)
+def test_split_square_brackets(facet_iid, expected):
+    assert split_square_brackets(facet_iid) == expected

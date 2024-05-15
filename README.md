@@ -13,28 +13,27 @@ If you want all the required dependencies for testing and development simply do:
 pip install pangeo-forge-esgf[dev]
 ```
 
-## Parsing a list of instance ids using wildcards
+## Parsing a list of instance ids using wildcards and subsets of facets
 
 Pangeo forge recipes require the user to provide exact instance_id's for the datasets they want to be processed. Discovering these with the [web search](https://esgf-node.llnl.gov/search/cmip6/) can become cumbersome, especially when dealing with a large number of members/models etc.
 
-`pangeo-forge-esgf` provides some functions to query the ESGF API based on instance_id values with wildcards.
+`pangeo-forge-esgf` provides some functions to query the ESGF API based on instance_id values with wildcards and facet subsets in square brackets.
 
-For example if you want to find all the zonal (`uo`) and meridonal (`vo`) velocities available for the `lgm` experiment of PMIP, you can do:
+For example if you want to find all the zonal (`uo`) and meridonal (`vo`) velocities available for the `lgm` experiment of PMIP, with no restriction on `experiment_id`/`source_id` and other facets, you can do:
 
 ```python
 from pangeo_forge_esgf.parsing import parse_instance_ids
+from pangeo_forge_esgf.client import ESGFClient
+client = ESGFClient("https://esgf-node.llnl.gov/") # you can use other ESGF search nodes here too!
 parse_iids = [
     "CMIP6.PMIP.*.*.lgm.*.*.[uo, vo].*.*",
 ]
 # Comma separated values in square brackets will be expanded and the above is equivalent to:
 # parse_iids = [
-#     "CMIP6.PMIP.*.*.lgm.*.*.[uo, vo].*.*", # this is equivalent to passing
+#     "CMIP6.PMIP.*.*.lgm.*.*.uo.*.*",
 #     "CMIP6.PMIP.*.*.lgm.*.*.vo.*.*",
 # ]
-iids = []
-for piid in parse_iids:
-    iids.extend(parse_instance_ids(piid))
-iids
+iids = client.expand_instance_id_list(parse_iids)
 ```
 
 and you will get:
