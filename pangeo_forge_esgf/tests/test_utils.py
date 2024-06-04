@@ -47,7 +47,8 @@ def test_facets_from_iid(fix_version):
         else:
             assert k == v
 
+
 def test_facets_from_iid_wrong_length():
-    iid = 'Just.three.facets'
+    iid = "Just.three.facets"
     with pytest.raises(ValueError):
         facets_from_iid(iid)
