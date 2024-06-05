@@ -15,7 +15,7 @@ def facets_from_iid(iid: str, fix_version: bool = True) -> Dict[str, str]:
             f"Found {len(iid_split)} facets in `iid`, but expected {len(template_split)}. Got {iid_split=}"
         )
     facets = {}
-    for name, value in zip(template_split, iids_split):
+    for name, value in zip(template_split, iid_split):
         facets[name] = value
     if fix_version:
         facets["version"] = facets["version"].replace("v", "")
