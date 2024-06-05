@@ -11,7 +11,7 @@ def facets_from_iid(iid: str, fix_version: bool = True) -> Dict[str, str]:
     template_split = iid_name_template.split(".")
     iid_split = iid.split(".")
     if len(template_split) != len(iid_split):
-        raise ValueError(f"Found {len(iid_split)} facets in `iid`, but expected {len(template_split)}. Got {iid_split=}"
+        raise ValueError(f"Found {len(iid_split)} facets in `iid`, but expected {len(template_split)}. Got {iid_split=}")
     facets = {}
     for name, value in zip(template_split, iids_split):
         facets[name] = value
